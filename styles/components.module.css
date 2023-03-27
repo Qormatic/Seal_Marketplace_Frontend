@@ -1,0 +1,10 @@
+
+.button {
+    background-color: #4096ff;
+    color: white;
+  }
+
+  .centered {
+    display: flex;
+    align-items: center;
+  }
