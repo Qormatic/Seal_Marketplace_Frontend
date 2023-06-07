@@ -3,13 +3,13 @@
 // import Head from "next/head" // using HEad allows us to set Metadata for a page which improves SEO
 import styles from "@/styles/components.module.css"
 // import { Form, useNotification, Button } from "web3uikit"
-import { GET_ACTIVE_ITEMS, GET_ACTIVE_COLLECTIONS } from "@/constants/subgraphQueries"
 import { ApolloClient, InMemoryCache, gql, useQuery } from "@apollo/client"
 import { useMoralis, useWeb3Contract, useNFTBalances } from "react-moralis"
 import { useEffect, useState, useRef } from "react"
 import { networkMapping } from "@/constants"
 import { NFT_OnSaleFilter, NFT_WalletFilter, NFT_SellNftFilter } from "@/components/Filter"
 import NFTList from "@/components/NFTList"
+import CollectionList from "@/components/CollectionList"
 import { ProfileHeader } from "@/components/Header"
 import {
     Divider,
@@ -53,6 +53,7 @@ export default function Profile({
     const [showFixedPrice, setShowFixedPrice] = useState(false)
 
     const [toSellNfts, setToSellNfts] = useState({ collectionNfts: [null], walletNfts: [null] })
+    const [showCollections, setShowCollections] = useState(false)
     const [walletNfts, setWalletNfts] = useState([null])
     const [collectionNfts, setCollectionNfts] = useState([null])
 
@@ -64,9 +65,17 @@ export default function Profile({
 
     const previousAccount = useRef(null)
 
+    const [userMPCollections, setUserMPCollections] = useState()
+
     const { runContractFunction } = useWeb3Contract()
 
-    // console.log("userCollections", userCollections)
+    // get all contract addresses for user's MP collections
+    // output will be array as [address1, address2, address3] or if has no contracts empty array
+    const contractAddresses = userCollections.contractCreateds.map(
+        (contract) => contract.contractAddress
+    )
+
+    console.log("contractAddresses: ", contractAddresses)
 
     //////////////////////
     //  NFTs in Wallet  //
@@ -83,11 +92,6 @@ export default function Profile({
                 network: Network.MATIC_MUMBAI,
                 // network: Network.NEXT_PUBLIC_NETWORK,
             })
-
-            // get all contract addresses for user's MP collections; if has no contracts, return empty array
-            const contractAddresses = userCollections.contractCreateds.map(
-                (contract) => contract.contractAddress
-            )
 
             try {
                 const nfts = await alchemy.nft.getNftsForOwner(profile, {
@@ -119,6 +123,25 @@ export default function Profile({
                         walletNfts: prevData.walletNfts,
                     }))
                 }
+            } catch (error) {
+                console.error(error)
+            }
+        }
+    }
+
+    const getUserMPCollectionsAll = async () => {
+        if (account === profile) {
+            const alchemy = new Alchemy({
+                apiKey: process.env.NEXT_PUBLIC_ALCHEMY_API_KEY,
+                network: Network.MATIC_MUMBAI,
+            })
+
+            try {
+                const allCollectionsData = await alchemy.nft.getContractMetadataBatch(
+                    contractAddresses
+                )
+
+                setUserMPCollections(allCollectionsData)
             } catch (error) {
                 console.error(error)
             }
@@ -229,6 +252,39 @@ export default function Profile({
         window.location.reload()
     }
 
+    ///////////////////////////////
+    //  NFTs/Collections Filter  //
+    ///////////////////////////////
+
+    // toggle show user NFT items or marcopolo collections
+    const handleShowCollections = () => {
+        if (showCollections) {
+            setShowCollections(false) // if showCollections is true, set it to false
+        } else {
+            setShowCollections(true) // if showCollections is false, set it to true
+        }
+    }
+
+    const NFTsButtonStyle = {
+        background: !showCollections ? "black" : "white",
+        color: !showCollections ? "white" : "black",
+        fontSize: "20px",
+        marginLeft: "5px",
+        display: "flex",
+        justifyContent: "center",
+        alignItems: "center",
+    }
+
+    const CollectionsButtonStyle = {
+        borderRadius: "20px",
+        background: showCollections ? "black" : "white",
+        color: showCollections ? "white" : "black",
+        fontSize: "20px",
+        display: "flex",
+        justifyContent: "center",
+        alignItems: "center",
+    }
+
     //////////////////////////////
     //  On sale/To Sell Filter  //
     //////////////////////////////
@@ -322,6 +378,7 @@ export default function Profile({
     useEffect(() => {
         if (account) {
             getUserNFTsAll()
+            getUserMPCollectionsAll()
         }
     }, [account])
 
@@ -393,28 +450,70 @@ export default function Profile({
                                 </Row>
                             </div>
                         </Content>
-                        <NFTs
-                            showOnSale={showOnSale}
-                            handleShowOnSaleItems={handleShowOnSaleItems}
-                            showSellButton={showSellButton}
-                            onSaleNfts={onSaleNfts}
-                            allOnSaleNfts={allOnSaleNfts}
-                            allToSellNfts={allToSellNfts}
-                            toSellNfts={toSellNfts}
-                            handleFixedPriceFilter={handleFixedPriceFilter}
-                            handleAuctionFilter={handleAuctionFilter}
-                            handleShowAllActive={handleShowAllActive}
-                            handleShowAllInactive={handleShowAllInactive}
-                            handleExternalFilter={handleExternalFilter}
-                            handlePoloFilter={handlePoloFilter}
-                            showFixedPrice={showFixedPrice}
-                            showAuction={showAuction}
-                            showAllActive={showAllActive}
-                            showAllInactive={showAllInactive}
-                            showPolo={showPolo}
-                            showExternal={showExternal}
-                            NFTListData={NFTListData}
-                        />
+                        <div>
+                            <Space style={{ paddingTop: "20px" }}>
+                                <Button
+                                    shape="round"
+                                    size="large"
+                                    style={NFTsButtonStyle}
+                                    onClick={() => handleShowCollections()}
+                                >
+                                    Wallet NFTs
+                                    {/* <Title
+                                        level={2}
+                                        style={{
+                                            margin: 0,
+                                            color: !showCollections ? "white" : "black",
+                                        }}
+                                    >
+                                        Wallet NFTs
+                                    </Title> */}
+                                </Button>
+                                <Button
+                                    shape="round"
+                                    size="large"
+                                    style={CollectionsButtonStyle}
+                                    onClick={() => handleShowCollections()}
+                                >
+                                    Marcopolo Collections
+                                    {/* <Title
+                                        level={2}
+                                        style={{
+                                            margin: 0,
+                                            color: showCollections ? "white" : "black",
+                                        }}
+                                    >
+                                        Marcopolo Collections
+                                    </Title> */}
+                                </Button>
+                            </Space>
+                            {!showCollections ? (
+                                <NFTs
+                                    showOnSale={showOnSale}
+                                    handleShowOnSaleItems={handleShowOnSaleItems}
+                                    showSellButton={showSellButton}
+                                    onSaleNfts={onSaleNfts}
+                                    allOnSaleNfts={allOnSaleNfts}
+                                    allToSellNfts={allToSellNfts}
+                                    toSellNfts={toSellNfts}
+                                    handleFixedPriceFilter={handleFixedPriceFilter}
+                                    handleAuctionFilter={handleAuctionFilter}
+                                    handleShowAllActive={handleShowAllActive}
+                                    handleShowAllInactive={handleShowAllInactive}
+                                    handleExternalFilter={handleExternalFilter}
+                                    handlePoloFilter={handlePoloFilter}
+                                    showFixedPrice={showFixedPrice}
+                                    showAuction={showAuction}
+                                    showAllActive={showAllActive}
+                                    showAllInactive={showAllInactive}
+                                    showPolo={showPolo}
+                                    showExternal={showExternal}
+                                    NFTListData={NFTListData}
+                                />
+                            ) : (
+                                <Collections userMPCollections={userMPCollections} />
+                            )}
+                        </div>
                     </div>
                     <Footer />
                 </Layout>
@@ -459,8 +558,7 @@ const NFTs = ({
 
     return (
         <>
-            <Row style={{ paddingTop: "40px" }}>
-                <Title level={2}>NFTs</Title>
+            <Row style={{ paddingTop: "0px" }}>
                 <Divider style={{ width: "100%" }} />
                 <div>
                     <NFT_WalletFilter
@@ -514,6 +612,61 @@ const NFTs = ({
                 <div>Web3 Currently Not Enabled</div>
             )}
         </>
+    )
+}
+
+const Collections = ({ userMPCollections }) => {
+    const { chainId, isWeb3Enabled } = useMoralis()
+
+    console.log("userMPCollections_564: ", userMPCollections)
+
+    return (
+        <>
+            <Row style={{ paddingTop: "0px" }}>
+                <Divider style={{ width: "100%" }} />
+            </Row>
+            {isWeb3Enabled && chainId ? (
+                <div>
+                    {!userMPCollections ? (
+                        <div style={{ margin: "10px" }}>
+                            <Title level={3}>Looks like you have no Marcopolo Collections!</Title>
+                        </div>
+                    ) : (
+                        <CollectionList userMPCollections={userMPCollections} />
+                    )}
+                </div>
+            ) : (
+                <div>Web3 Currently Not Enabled</div>
+            )}
+        </>
+    )
+}
+
+const ProceedsDisplay = ({ userProceeds, handleWithdrawProceeds }) => {
+    const disableButton = userProceeds === "0.0"
+
+    return (
+        <Card className="proceedsCard">
+            <Title type="secondary" level={4}>
+                Available Funds
+            </Title>
+            <Title level={3} style={{ margin: 0 }}>
+                {userProceeds} ETH
+            </Title>
+            <Button
+                shape="round"
+                type="primary"
+                size="large"
+                block
+                style={{ marginTop: "10px" }}
+                disabled={disableButton}
+                className={`${styles["sale-card-button"]} ${disableButton ? styles.disabled : ""}`}
+                onClick={() => handleWithdrawProceeds()}
+            >
+                {" "}
+                Withdraw Now
+            </Button>
+        </Card>
     )
 }
 
@@ -579,9 +732,11 @@ export async function getServerSideProps({ params }) {
         query: GET_USER_COLLECTIONS,
     })
 
+    // console.log("collections: ", collections)
+
     const userCollections = collections.data
 
-    console.log(userCollections)
+    // console.log("userCollections: ", userCollections)
 
     ///////////////////////
     //  getUserProceeds  //
@@ -622,32 +777,4 @@ export async function getServerSideProps({ params }) {
             userProceeds,
         },
     }
-}
-
-const ProceedsDisplay = ({ userProceeds, handleWithdrawProceeds }) => {
-    const disableButton = userProceeds === "0.0"
-
-    return (
-        <Card className="proceedsCard">
-            <Title type="secondary" level={4}>
-                Available Funds
-            </Title>
-            <Title level={3} style={{ margin: 0 }}>
-                {userProceeds} ETH
-            </Title>
-            <Button
-                shape="round"
-                type="primary"
-                size="large"
-                block
-                style={{ marginTop: "10px" }}
-                disabled={disableButton}
-                className={`${styles["sale-card-button"]} ${disableButton ? styles.disabled : ""}`}
-                onClick={() => handleWithdrawProceeds()}
-            >
-                {" "}
-                Withdraw Now
-            </Button>
-        </Card>
-    )
 }

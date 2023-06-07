@@ -216,7 +216,7 @@ export const ArtworkForm = ({
                         accept=".png, .jpg, .jpeg"
                         beforeUpload={handleIpfsImageUpload}
                         action="Placeholder" // action is a required prop; it will try and POST to the string and will fail which is fine
-                        onChange={handleUpload} // called any time thre is a change in the file upload status
+                        onChange={handleUpload} // called any time there is a change in the file upload status
                         fileList={fileList} // list of all uploaded files
                         customRequest={dummyRequest}
                     >

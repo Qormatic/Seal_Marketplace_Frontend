@@ -341,12 +341,14 @@ const CollectionModal = ({ showModal, handleCancel }) => {
     ///////////////////////////
 
     const handleFinishCollection = (values) => {
+        // This info goes into the contract
         setCollectionData(values)
 
         setCurrentStep(1)
     }
 
     const handleFinishArtwork = async (values) => {
+        // This info goes into the Metadata
         const { artworkAttributes, artworkDescription, artworkName, uploadArtwork } = values
 
         setArtworkData(values)
