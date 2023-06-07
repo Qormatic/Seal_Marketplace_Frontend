@@ -2,32 +2,81 @@
 
 // import styles from "../styles/Browse.module.css"
 import { useMoralis } from "react-moralis"
-import NFTBox from "../components/MarketNFT_Box"
-import NFTList from "../components/NFTList"
-import { networkMapping } from "../constants" // when we reference a folder, we will pick up module.exports from our index.js
-import { GET_ACTIVE_ITEMS } from "../constants/subgraphQueries"
+import { useState } from "react"
+
+import NFTList from "@/components/NFTList"
+import { NFT_OnSaleFilter } from "@/components/Filter"
+import { networkMapping } from "@/constants" // when we reference a folder, we will pick up module.exports from our index.js
+import { GET_ACTIVE_ITEMS } from "@/constants/subgraphQueries"
 import { ApolloClient, InMemoryCache, gql, useQuery } from "@apollo/client"
+import { Space, Button, Divider, Row, Badge, Typography } from "antd"
 
-// export async function getStaticPaths(){     ---> to build dynamic NFT pages, we need both getStaticPaths & getStaticProps in this page component
-//                                             ---> getStaticPaths is when we don't know how may pages we ahev, so we build dynamically
-// }                                           ---> getStaticPathstells Next how many html pages needed; getStaticProps tells it what data to use in their building
-
-// export async function getStaticProps(){
-
-// }
+const { Title } = Typography
 
 export default function Browse({ listedNfts }) {
-    const { chainId, isWeb3Enabled } = useMoralis()
-    const chainString = chainId ? parseInt(chainId).toString() : null
-    const marketplaceAddress = chainId ? networkMapping[chainString].NFTMarketplace[0] : null
-    // console.log("MARKETPLACE: ", marketplaceAddress)
+    const [showFixedPrice, setShowFixedPrice] = useState(false)
+    const [showAuction, setShowAuction] = useState(false)
+    const [showAllActive, setShowAllActive] = useState(false)
 
-    // const { loading, error, data: listedNfts } = useQuery(GET_ACTIVE_ITEMS)
-    // console.log(listedNfts)
+    //////////////////////
+    //  Filter Buttons  //
+    //////////////////////
+
+    const handleFixedPriceFilter = () => {
+        setShowFixedPrice(true)
+        setShowAllActive(false)
+        setShowAuction(false)
+    }
+
+    const handleAuctionFilter = () => {
+        setShowAuction(true)
+        setShowAllActive(false)
+        setShowFixedPrice(false)
+    }
+
+    const handleShowAllActive = () => {
+        setShowAllActive(true)
+        setShowAuction(false)
+        setShowFixedPrice(false)
+    }
+
+    const allNfts = [...listedNfts.activeFixedPriceItems, ...listedNfts.activeAuctionItems]
+
+    console.log("allNfts: ", allNfts)
+
+    const filteredNfts = showFixedPrice
+        ? listedNfts.activeFixedPriceItems
+        : showAuction
+        ? listedNfts.activeAuctionItems
+        : allNfts
+
+    console.log("filteredNfts: ", filteredNfts)
 
     return (
-        <div>
-            <NFTList listedNfts={listedNfts} />
+        <div style={{ padding: "50px" }}>
+            <Row>
+                <Title level={2}>Browse</Title>
+                <Button>
+                    <Title level={2}>Sell</Title>
+                </Button>
+            </Row>
+            <div>
+                <Divider style={{ width: "100%" }} />
+            </div>
+            <NFT_OnSaleFilter
+                fixedNftsLength={listedNfts.activeFixedPriceItems.length}
+                auctionNftsLength={listedNfts.activeAuctionItems.length}
+                handleFixedPriceFilter={handleFixedPriceFilter}
+                handleAuctionFilter={handleAuctionFilter}
+                handleShowAllActive={handleShowAllActive}
+                showFixedPrice={showFixedPrice}
+                showAuction={showAuction}
+                showAllActive={showAllActive}
+                allNftsLength={allNfts.length}
+            />
+            <div>
+                <NFTList showOnSale={true} NFTListData={filteredNfts} />
+            </div>
         </div>
     )
 }

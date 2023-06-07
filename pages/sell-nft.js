@@ -1,10 +1,10 @@
 // This is the Sell Page with a from allowing user to list an item
 
-import styles from "../styles/Home.module.css"
+import styles from "@/styles/Home.module.css"
 import { Form, useNotification, Button } from "web3uikit"
 import { useMoralis, useWeb3Contract } from "react-moralis"
 import { ethers } from "ethers"
-import { networkMapping, nftMarketplaceAbi, nftAuctionAbi, nftAbi } from "../constants" // when we reference a folder, we will pick up module.exports from our index.js
+import { networkMapping, nftMarketplaceAbi, nftAuctionAbi, nftAbi } from "@/constants" // when we reference a folder, we will pick up module.exports from our index.js
 import { useEffect, useState } from "react"
 
 export default function Home() {

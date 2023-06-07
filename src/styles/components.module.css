@@ -1,0 +1,58 @@
+
+.button {
+  background-color: rgba(0, 0, 0, 0.8);
+  color: white;
+  }
+
+  .blueButton {
+    background-color: #40a9ff;
+  }
+
+  .centered {
+    display: flex;
+    align-items: center;
+  }
+
+  .space-align-container {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-start;
+  }
+  .space-align-block {
+    flex: none;
+    margin: 8px 4px;
+    padding: 4px;
+    border: 1px solid #40a9ff;
+  }
+
+  .sale-card {
+    border-radius: "15px";
+  }
+
+.sale-card-button {
+    color: white;
+    padding-right: 90px;
+    padding-left: 90px;
+    margin-top: 10px;
+    background-color: rgba(0, 0, 0, 0.8);
+    cursor: pointer;
+    opacity: 1;
+}
+
+.sale-card-button.disabled {
+  background-color: gray;
+  cursor: default;
+  opacity: 0.5;
+}
+
+.avatar {
+  padding: 50px;
+  position: absolute;
+  top: calc(50% - 75px);
+  left: calc(50% - 75px); 
+}
+
+.avatar-container {
+  position: relative;
+  height: 200px;
+}

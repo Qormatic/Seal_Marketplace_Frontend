@@ -31,19 +31,28 @@
  *        ---> see [tokenId].js for example
  */
 
-import "../styles/globals.css"
-import { MoralisProvider } from "react-moralis"
-import Header from "../components/Header"
 import Head from "next/head"
+import { Header } from "../src/components/Header"
+import "@/styles/globals.css"
+import { useMoralis, MoralisProvider } from "react-moralis"
 import { NotificationProvider } from "web3uikit"
 import { ApolloProvider, ApolloClient, InMemoryCache } from "@apollo/client"
+import { Fragment } from "react"
 
 const client = new ApolloClient({
+    connectToDevTools: true,
     cache: new InMemoryCache(),
     uri: process.env.NEXT_PUBLIC_SUBGRAPH_URL,
 })
 
-function MyApp({ Component, pageProps }) {
+// The Component prop is the active page, so whenever you navigate between routes, Component will change to the new page
+// pageProps is an object with the initial props that were preloaded for your page by one of our data fetching methods, otherwise it's an empty object.
+
+function MyApp({ Component, pageProps, ...appProps }) {
+    // if path begins with "/profile" then we don't want to show the header
+    const noHeader = appProps.router.pathname.startsWith("/profile")
+    const HeaderComponent = noHeader ? Fragment : Header
+
     return (
         <div>
             <Head>
@@ -57,7 +66,7 @@ function MyApp({ Component, pageProps }) {
             <MoralisProvider initializeOnMount={false}>
                 <ApolloProvider client={client}>
                     <NotificationProvider>
-                        <Header />
+                        <HeaderComponent />
                         <Component {...pageProps} />
                     </NotificationProvider>
                 </ApolloProvider>

@@ -3,11 +3,11 @@
 import { Alchemy, Network } from "alchemy-sdk"
 
 const config = {
-    apiKey: process.env.NEXT_ALCHEMY_API_KEY,
-    network: Network.ETH_GOERLI, // "eth-goerli"
+    apiKey: process.env.NEXT_PUBLIC_ALCHEMY_API_KEY,
+    network: Network.NEXT_PUBLIC_NETWORK,
 }
 
-const address = "0xb68c38d85f7fd44af18da28d81a2beeacbbba4c3"
+const address = "0xD21bb23e1F754f3a282E5aFf82Ba6f58B7e15D3b"
 const alchemy = new Alchemy(config)
 
 export default async function myNFTs(req, res) {

@@ -1,4 +1,3 @@
-// import { Alchemy, Network } from "alchemy-sdk"
 const { Alchemy, Network } = require("alchemy-sdk")
 
 const config = {
