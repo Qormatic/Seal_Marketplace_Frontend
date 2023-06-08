@@ -1,0 +1,89 @@
+contractNFTs:  {
+    nfts: [
+      {
+        contract: [Object],
+        tokenId: '0',
+        tokenType: 'ERC721',
+        title: "St.Mark's Square",
+        description: 'Description for the artwork',
+        timeLastUpdated: '2023-04-18T14:27:39.364Z',
+        metadataError: undefined,
+        rawMetadata: [Object],
+        tokenUri: [Object],
+        media: [Array],
+        spamInfo: undefined
+      }
+    ],
+    pageKey: undefined
+  }
+  contractNFTs.nfts:  [
+    {
+      contract: {
+        address: '0x1cbf221a3798c2f680a2dfcdd3d60412a3d3ad3e',
+        name: 'Festivals around the world',
+        symbol: 'FEST',
+        totalSupply: '1',
+        tokenType: 'ERC721',
+        openSea: [Object],
+        contractDeployer: undefined,
+        deployedBlockNumber: undefined
+      },
+      tokenId: '0',
+      tokenType: 'ERC721',
+      title: "St.Mark's Square",
+      description: 'Description for the artwork',
+      timeLastUpdated: '2023-04-18T14:27:39.364Z',
+      metadataError: undefined,
+      rawMetadata: {
+        name: "St.Mark's Square",
+        description: 'Description for the artwork',
+        image: 'https://ipfs.io/ipfs/QmUqqBKUKz81wgewM7FK1RtZwwn1pc4vyy2Tqpi7YyWkqM',
+        attributes: [Array]
+      },
+      tokenUri: {
+        gateway: 'https://alchemy.mypinata.cloud/ipfs/QmWSvWTSfZD7hntgcsv4R66VmJqP7n4nfRsRs2YLuKUvte',
+        raw: 'https://ipfs.io/ipfs/QmWSvWTSfZD7hntgcsv4R66VmJqP7n4nfRsRs2YLuKUvte'
+      },
+      media: [ [Object] ],
+      spamInfo: undefined
+    }
+  ]
+  contractNFTs.contract:  {
+    address: '0x1cbf221a3798c2f680a2dfcdd3d60412a3d3ad3e',
+    name: 'Festivals around the world',
+    symbol: 'FEST',
+    totalSupply: '1',
+    tokenType: 'ERC721',
+    openSea: {
+      floorPrice: undefined,
+      collectionName: undefined,
+      safelistRequestStatus: undefined,
+      imageUrl: undefined,
+      description: undefined,
+      externalUrl: undefined,
+      twitterUsername: undefined,
+      discordUrl: undefined,
+      lastIngestedAt: '2023-06-01T06:33:57.000Z'
+    },
+    contractDeployer: undefined,
+    deployedBlockNumber: undefined
+  }
+  contractNFTs.rawMetadata:  {
+    name: "St.Mark's Square",
+    description: 'Description for the artwork',
+    image: 'https://ipfs.io/ipfs/QmUqqBKUKz81wgewM7FK1RtZwwn1pc4vyy2Tqpi7YyWkqM',
+    attributes: [ { attributeValue: 100, attributeName: 'scary' } ]
+  }
+  contractNFTs.tokenUri:  {
+    gateway: 'https://alchemy.mypinata.cloud/ipfs/QmWSvWTSfZD7hntgcsv4R66VmJqP7n4nfRsRs2YLuKUvte',
+    raw: 'https://ipfs.io/ipfs/QmWSvWTSfZD7hntgcsv4R66VmJqP7n4nfRsRs2YLuKUvte'
+  }
+  contractNFTs.media:  [
+    {
+      gateway: 'https://nft-cdn.alchemy.com/matic-mumbai/96c440ed92cc405fd62b81a4e5be03a4',
+      thumbnail: 'https://res.cloudinary.com/alchemyapi/image/upload/thumbnailv2/matic-mumbai/96c440ed92cc405fd62b81a4e5be03a4',
+      raw: 'https://ipfs.io/ipfs/QmUqqBKUKz81wgewM7FK1RtZwwn1pc4vyy2Tqpi7YyWkqM',
+      format: 'png',
+      bytes: 1876718
+    }
+  ]

@@ -231,3 +231,48 @@ export function NFT_SellNftFilter({
         </div>
     )
 }
+
+// Filters between on sale/not on sale NFTs
+export function NFT_CollectionFilter({ handleShowOnSale, showOnSale }) {
+    const OffSaleButtonStyle = {
+        background: !showOnSale ? "black" : "white",
+        color: !showOnSale ? "white" : "black",
+        fontSize: "20px",
+        marginLeft: "5px",
+        display: "flex",
+        justifyContent: "center",
+        alignItems: "center",
+    }
+
+    const OnSaleButtonStyle = {
+        borderRadius: "20px",
+        background: showOnSale ? "black" : "white",
+        color: showOnSale ? "white" : "black",
+        fontSize: "20px",
+        display: "flex",
+        justifyContent: "center",
+        alignItems: "center",
+    }
+    return (
+        <div>
+            <Space style={{ paddingTop: "20px" }}>
+                <Button
+                    shape="round"
+                    size="large"
+                    style={OnSaleButtonStyle}
+                    onClick={() => handleShowOnSale()}
+                >
+                    On Sale NFTs{" "}
+                </Button>
+                <Button
+                    shape="round"
+                    size="large"
+                    style={OffSaleButtonStyle}
+                    onClick={() => handleShowOnSale()}
+                >
+                    Off Sale NFTs{" "}
+                </Button>
+            </Space>
+        </div>
+    )
+}

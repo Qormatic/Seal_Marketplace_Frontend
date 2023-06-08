@@ -1,6 +1,6 @@
 // customised 500 error page returned if getStaticProps retrieves no data
-// not retured in development mode
+// not returned in development mode
 
 export default function Custom500() {
-    return <h1>This page does not exist</h1>
+    return <h1>You are seeing this 500 error because the requested page does not exist</h1>
 }

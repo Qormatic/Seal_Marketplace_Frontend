@@ -3,38 +3,66 @@
 import { GET_ACTIVE_ITEMS, GET_ACTIVE_COLLECTIONS } from "@/constants/subgraphQueries"
 // import Image from "next/image"
 import { ApolloClient, InMemoryCache, gql, useQuery } from "@apollo/client"
-import { NFT_OnSaleFilter } from "@/components/Filter"
+import { NFT_OnSaleFilter, NFT_CollectionFilter } from "@/components/Filter"
 import NFTList from "@/components/NFTList"
+import NFTList_OffSale from "@/components/NFTList_OffSale"
 import { useWeb3Contract, useMoralis } from "react-moralis"
 import { avatars, collectionDescriptions } from "@/constants/fluff"
+import contractFactoryAbi from "@/constants/MP_ContractFactory.json"
 import { Fragment } from "react"
 import nftAbi from "@/constants/BasicNft.json"
 import { truncateStr } from "@/utils/truncate"
 import Link from "next/link"
+import { networkMapping } from "@/constants"
 import { NftFilters, Alchemy, Network } from "alchemy-sdk"
+import { ethers } from "ethers"
 
 // import Image from "next/image"
 import { useEffect, useState } from "react"
 import { Layout, Row, Col, Typography, Image, Card, Space, Button, Avatar, Divider } from "antd"
+
 const { Header, Content, Footer } = Layout
 const { Title, Text } = Typography
+const mumbaiChain = "80001"
+const contractFactoryAddress = mumbaiChain ? networkMapping[mumbaiChain].ContractFactory[0] : null
 
 export default function CollectionPage({ NFTListData, collectionData, profileData }) {
     const [imageURI, setImageURI] = useState("")
-    const { isWeb3Enabled, chainId } = useMoralis()
     const [showOnSale, setShowOnSale] = useState(true)
     const [showAll, setShowAll] = useState(true)
     const [showAuction, setShowAuction] = useState(false)
     const [showFixedPrice, setShowFixedPrice] = useState(false)
 
-    console.log("NFTListData: ", NFTListData)
+    const { isWeb3Enabled, chainId } = useMoralis()
+    const { runContractFunction } = useWeb3Contract()
 
     const allOnSaleNfts = [...NFTListData.activeFixedPriceItems, ...NFTListData.activeAuctionItems]
-    const randomNft = Math.floor(Math.random() * allOnSaleNfts.length) // use randomNft from collection as the NFT to display on the page
 
-    //////////////////////
-    //  Filter Buttons  //
-    //////////////////////
+    ///////////////////////////////////
+    //  Get Owners not On-Sale NFTs  //
+    ///////////////////////////////////
+
+    let offSaleNfts
+    if (NFTListData.inActiveItems) {
+        offSaleNfts = NFTListData.inActiveItems
+    }
+
+    ////////////////////////////////////
+    //  For Sale/Not For Sale Filter  //
+    ////////////////////////////////////
+
+    // toggle show user NFT items or marcopolo collections
+    const handleShowOnSale = () => {
+        if (showOnSale) {
+            setShowOnSale(false) // if showCollections is true, set it to false
+        } else {
+            setShowOnSale(true) // if showCollections is false, set it to true
+        }
+    }
+
+    ///////////////////////////////
+    //  For Sale Filter Buttons  //
+    ///////////////////////////////
 
     const handleShowAllItems = () => {
         setShowAll(true)
@@ -54,27 +82,35 @@ export default function CollectionPage({ NFTListData, collectionData, profileDat
         setShowFixedPrice(false)
     }
 
-    ////////////////////
-    //  Get imageURI  //
-    ////////////////////
+    //////////////////////
+    //  Get Page Image  //
+    //////////////////////
 
-    const result = useWeb3Contract({
-        abi: nftAbi,
-        contractAddress: allOnSaleNfts[randomNft].nftAddress,
-        functionName: "tokenURI",
-        params: {
-            tokenId: allOnSaleNfts[randomNft].tokenId,
-        },
-    })
+    async function random_N(len) {
+        return Math.floor(Math.random() * len) // random element picker
+    }
 
     async function updateUI() {
-        let getTokenURI
+        let tokenURI
+        let len = await random_N(allOnSaleNfts.length)
 
-        if (allOnSaleNfts[randomNft].nftAddress) {
-            getTokenURI = result.runContractFunction
+        if (allOnSaleNfts[len].nftAddress) {
+            let params = {
+                abi: nftAbi,
+                contractAddress: allOnSaleNfts[len].nftAddress,
+                functionName: "tokenURI",
+                params: {
+                    tokenId: allOnSaleNfts[len].tokenId,
+                },
+            }
+
+            tokenURI = await runContractFunction({ params: params })
+
+            console.log("tokenURI: ", tokenURI)
+        } else {
+            tokenURI = offSaleNfts[random_N(offSaleNfts.length)].tokenUri
         }
 
-        const tokenURI = await getTokenURI()
         if (tokenURI) {
             const requestURL = tokenURI.replace("ipfs://", "https://ipfs.io/ipfs/")
             const tokenURIResponse = await (await fetch(requestURL)).json()
@@ -100,14 +136,12 @@ export default function CollectionPage({ NFTListData, collectionData, profileDat
     // run updateUI if isWeb3Enabled changes
     useEffect(() => {
         if (isWeb3Enabled) {
-            if (allOnSaleNfts.length) {
-                // console.log("allOnSaleNfts: ", allOnSaleNfts)
-                updateUI()
-            }
+            updateUI()
+        }
+        if (!allOnSaleNfts.length) {
+            setShowOnSale(false)
         }
     }, [isWeb3Enabled])
-
-    console.log("collectionData: ", collectionData)
 
     return (
         <div>
@@ -160,37 +194,55 @@ export default function CollectionPage({ NFTListData, collectionData, profileDat
                             <Title level={2}>From this Collection</Title>
                             <Divider style={{ width: "100%", marginTop: "10px" }} />
                         </Row>
+                        <NFT_CollectionFilter
+                            handleShowOnSale={handleShowOnSale}
+                            showOnSale={showOnSale}
+                        />
+                        <Divider style={{ width: "100%" }} />
+
                         {isWeb3Enabled && chainId ? (
-                            allOnSaleNfts.length > 0 ? (
+                            showOnSale ? (
+                                allOnSaleNfts.length > 0 ? (
+                                    <Fragment>
+                                        <div>
+                                            {" "}
+                                            <NFT_OnSaleFilter
+                                                fixedNftsLength={
+                                                    NFTListData.activeFixedPriceItems.length
+                                                }
+                                                auctionNftsLength={
+                                                    NFTListData.activeAuctionItems.length
+                                                }
+                                                allNftsLength={allOnSaleNfts.length}
+                                                handleFixedPriceFilter={handleFixedPriceFilter}
+                                                handleAuctionFilter={handleAuctionFilter}
+                                                handleShowAllItems={handleShowAllItems}
+                                                showFixedPrice={showFixedPrice}
+                                                showAuction={showAuction}
+                                                showAllActive={showAll}
+                                            />
+                                        </div>
+                                        <div>
+                                            <NFTList
+                                                NFTListData={filteredOnSaleNfts}
+                                                showOnSale={showOnSale}
+                                            />{" "}
+                                        </div>
+                                    </Fragment>
+                                ) : (
+                                    <div>
+                                        It looks like this collection currently has no NFTs for
+                                        sale!
+                                    </div>
+                                )
+                            ) : allOnSaleNfts.length > 0 ? (
                                 <Fragment>
                                     <div>
-                                        <NFT_OnSaleFilter
-                                            fixedNftsLength={
-                                                NFTListData.activeFixedPriceItems.length
-                                            }
-                                            auctionNftsLength={
-                                                NFTListData.activeAuctionItems.length
-                                            }
-                                            allNftsLength={allOnSaleNfts.length}
-                                            handleFixedPriceFilter={handleFixedPriceFilter}
-                                            handleAuctionFilter={handleAuctionFilter}
-                                            handleShowAllItems={handleShowAllItems}
-                                            showFixedPrice={showFixedPrice}
-                                            showAuction={showAuction}
-                                            showAll={showAll}
-                                        />
-                                    </div>
-                                    <div>
-                                        <NFTList
-                                            NFTListData={filteredOnSaleNfts}
-                                            showOnSale={showOnSale}
-                                        />{" "}
+                                        <NFTList_OffSale NFTListData={offSaleNfts} />{" "}
                                     </div>
                                 </Fragment>
                             ) : (
-                                <div>
-                                    It looks like this collection currently has no NFTs for sale!
-                                </div>
+                                <div>It looks like there's nothing to see here!</div>
                             )
                         ) : (
                             <div>Web3 Currently Not Enabled</div>
@@ -252,9 +304,9 @@ const CollectionInfoCard = ({ collectionData }) => {
 export async function getServerSideProps({ params }) {
     const { collectionAddress } = params || {}
 
-    ////////////////////////////////
-    //  Collection Items on Sale  //
-    ////////////////////////////////
+    //////////////////////////
+    //  Active Items Query  //
+    //////////////////////////
 
     const GET_ACTIVE_COLLECTION_ITEMS = gql`
     {
@@ -290,15 +342,28 @@ export async function getServerSideProps({ params }) {
     }
 `
 
-    // "context" contains the parameters used to create the current route user is on
-    const client = new ApolloClient({
-        cache: new InMemoryCache(),
-        uri: process.env.NEXT_PUBLIC_SUBGRAPH_URL,
-    })
+    ///////////////////////////////
+    //  Check if contract is MP  //
+    ///////////////////////////////
 
-    const { data } = await client.query({
-        query: GET_ACTIVE_COLLECTION_ITEMS,
-    })
+    async function isMPContract(collectionAddress) {
+        const provider = new ethers.providers.JsonRpcProvider(process.env.NEXT_PUBLIC_ALCHEMY_URL)
+        const contract = new ethers.Contract(contractFactoryAddress, contractFactoryAbi, provider)
+
+        try {
+            const isMarcopoloContract = await contract.s_deployedContracts(collectionAddress)
+
+            if (isMarcopoloContract === "0x0000000000000000000000000000000000000000") {
+                return false
+            } else {
+                return isMarcopoloContract
+            }
+        } catch (error) {
+            console.log("error: ", error)
+        }
+    }
+
+    const isMarcopoloContract = await isMPContract(collectionAddress)
 
     //////////////////////////////
     //  Collection Information  //
@@ -313,12 +378,110 @@ export async function getServerSideProps({ params }) {
         // excludeFilters: [NftFilters.SPAM],
     })
 
+    console.log("collection: ", collection)
+
     const collectionData = {
         address: collection.address,
         name: collection.name,
         symbol: collection.symbol,
         tokenType: collection.tokenType,
-        contractDeployer: collection.contractDeployer ?? "Marcopolo",
+        supply: collection.totalSupply ?? "Unknown",
+        contractDeployer:
+            collection.contractDeployer ??
+            (isMarcopoloContract !== false ? isMarcopoloContract : "Unknown"),
+    }
+
+    console.log("collectionData: ", collectionData)
+
+    /////////////////////////
+    //  Get On-Sale Items  //
+    /////////////////////////
+
+    // "context" contains the parameters used to create the current route user is on
+    const client = new ApolloClient({
+        cache: new InMemoryCache(),
+        uri: process.env.NEXT_PUBLIC_SUBGRAPH_URL,
+    })
+
+    const { data } = await client.query({
+        query: GET_ACTIVE_COLLECTION_ITEMS,
+    })
+
+    let newData = { ...data } // create new var bcos "data" is not editable
+
+    const activeItems = [...data.activeFixedPriceItems, ...data.activeAuctionItems]
+
+    console.log("activeItems: ", activeItems)
+
+    //////////////////////
+    //  Redirect to 500  //
+    //////////////////////
+
+    // if the collection is not MP and it has no On-Sale items; redirect user to 500 page
+    if (isMarcopoloContract === false && activeItems.length === 0) {
+        return {
+            redirect: {
+                destination: "/500",
+                permanent: false,
+            },
+        }
+    }
+
+    ////////////////////////////////////
+    //  Get all NFTs for MP contract  //
+    ////////////////////////////////////
+
+    if (isMarcopoloContract !== false) {
+        const { ownedNfts } = await alchemy.nft.getNftsForOwner(collectionData.contractDeployer, {
+            contractAddresses: [collectionAddress],
+            omitMetadata: false,
+        })
+
+        // console.log("ownedNfts: ", ownedNfts)
+
+        const allNFTs = ownedNfts.map((nft) => {
+            return {
+                tokenId: nft.tokenId,
+                imageUri: nft.rawMetadata.image,
+                tokenUri: nft.tokenUri.raw,
+                nftAddress: collectionAddress,
+            }
+        })
+
+        // console.log("allNFTs: ", allNFTs)
+
+        ///////////////////////////////////////
+        //  Get inActive Items (Not On-Sale) //
+        ///////////////////////////////////////
+
+        // we display these tokens only for MP contracts
+        // const inActiveItems = allNFTs.filter((nft) => {
+        //     // Check if the tokenId of `nft` is not present in `activeItems`
+        //     return !activeItems.some((item) => item.tokenId === nft.tokenId)
+        // })
+
+        const inActiveItems = [
+            {
+                tokenId: "0",
+                imageUri: "https://ipfs.io/ipfs/QmUqqBKUKz81wgewM7FK1RtZwwn1pc4vyy2Tqpi7YyWkqM",
+                tokenUri: "https://ipfs.io/ipfs/QmWSvWTSfZD7hntgcsv4R66VmJqP7n4nfRsRs2YLuKUvte",
+                nftAddress: collectionAddress,
+            },
+            {
+                tokenId: "12",
+                imageUri: "https://ipfs.io/ipfs/QmUqqBKUKz81wgewM7FK1RtZwwn1pc4vyy2Tqpi7YyWkqM",
+                tokenUri: "https://ipfs.io/ipfs/QmWSvWTSfZD7hntgcsv4R66VmJqP7n4nfRsRs2YLuKUvte",
+                nftAddress: collectionAddress,
+            },
+            {
+                tokenId: "5",
+                imageUri: "https://ipfs.io/ipfs/QmUqqBKUKz81wgewM7FK1RtZwwn1pc4vyy2Tqpi7YyWkqM",
+                tokenUri: "https://ipfs.io/ipfs/QmWSvWTSfZD7hntgcsv4R66VmJqP7n4nfRsRs2YLuKUvte",
+                nftAddress: collectionAddress,
+            },
+        ]
+
+        newData.inActiveItems = inActiveItems
     }
 
     ///////////////////////
@@ -331,9 +494,9 @@ export async function getServerSideProps({ params }) {
 
     let profileData = [randomDescription, randomAvatar]
 
-    console.log(profileData)
-
-    return { props: { NFTListData: data, collectionData, profileData } }
+    return {
+        props: { NFTListData: newData, collectionData, profileData },
+    }
 }
 
 // export async function getStaticPaths() {
