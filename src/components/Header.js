@@ -1,6 +1,7 @@
 import { ConnectButton } from "web3uikit"
 import { Chains, ChainsTwo } from "@/components/Chains/Chains"
 import { CollectionForm, ArtworkForm, FinishAndPayForm } from "@/components/Forms"
+import SellModal from "@/components/SellNFT_Modal"
 import Link from "next/link"
 import { useRouter } from "next/router"
 import { ethers } from "ethers"
@@ -60,27 +61,46 @@ const client = create({
     },
 })
 
+//////////////////////////////////////////
+//  Header for all pages except profile //
+//////////////////////////////////////////
+
 export function Header() {
     const router = useRouter()
     const { account } = useMoralis()
-    const [showModal, setShowModal] = useState(false)
+    const [showCollectionModal, setShowCollectionModal] = useState(false)
+    const [showSellModal, setShowSellModal] = useState(false)
 
-    /////////////////////
-    //  Modal Handlers //
-    /////////////////////
+    ////////////////////////////////
+    //  Collection Modal Handlers //
+    ////////////////////////////////
 
-    const handleButtonClick = () => {
+    const handleOpenCollectionModal = () => {
         // We open Create Contract modal
-        setShowModal(true)
+        setShowCollectionModal(true)
     }
 
-    const handleCancel = () => {
+    const handleCancelCollectionModal = () => {
         // We close Create Contract modal
-        setShowModal(false)
+        setShowCollectionModal(false)
+    }
+
+    //////////////////////////
+    //  Sell Modal Handlers //
+    //////////////////////////
+
+    const handleOpenSellModal = () => {
+        // We open Create Sell modal
+        setShowSellModal(true)
+    }
+
+    const handleCancelSellModal = () => {
+        // We close Create Sell modal
+        setShowSellModal(false)
     }
 
     ///////////////////////////////////
-    //  Check is user has a profile  //
+    //  Check if user has a profile  //
     ///////////////////////////////////
 
     const handleProfileLinkClick = (e) => {
@@ -105,7 +125,7 @@ export function Header() {
                         </a>
                     </Link>
                     <Button
-                        onClick={() => handleButtonClick()}
+                        onClick={() => handleOpenCollectionModal()}
                         style={{
                             backgroundColor: "none",
                             borderStyle: "hidden",
@@ -119,35 +139,72 @@ export function Header() {
                     >
                         🧙‍♂️ Create Collection
                     </Button>
+                    <Button
+                        onClick={() => handleOpenSellModal()}
+                        style={{
+                            backgroundColor: "none",
+                            borderStyle: "hidden",
+                            cursor: "pointer",
+                            fontSize: "16px",
+                            marginRight: "40px",
+                            padding: 0,
+                            textAlign: "left",
+                            width: "auto",
+                        }}
+                    >
+                        🤑 Sell NFT
+                    </Button>
                     <Chains />
                     <ConnectButton moralisAuth={false} />
                 </div>
             </nav>
             <CollectionModal
-                showModal={showModal}
-                setShowModal={setShowModal}
-                handleCancel={handleCancel}
+                showCollectionModal={showCollectionModal}
+                handleCancelCollectionModal={handleCancelCollectionModal}
+            />
+            <SellModal
+                showSellModal={showSellModal}
+                handleCancelSellModal={handleCancelSellModal}
             />
         </>
     )
 }
 
+//////////////////////////////
+//  Header for profile page //
+//////////////////////////////
+
 export function ProfileHeader() {
     const { account } = useMoralis()
-    const [showModal, setShowModal] = useState(false)
+    const [showCollectionModal, setShowCollectionModal] = useState(false)
+    const [showSellModal, setShowSellModal] = useState(false)
 
     /////////////////////
     //  Modal Handlers //
     /////////////////////
 
-    const handleButtonClick = () => {
+    const handleOpenCollectionModal = () => {
         // We open Create Contract modal
-        setShowModal(true)
+        setShowCollectionModal(true)
     }
 
-    const handleCancel = () => {
+    const handleCancelCollectionModal = () => {
         // We close Create Contract modal
-        setShowModal(false)
+        setShowCollectionModal(false)
+    }
+
+    //////////////////////////
+    //  Sell Modal Handlers //
+    //////////////////////////
+
+    const handleOpenSellModal = () => {
+        // We open Create Sell modal
+        setShowSellModal(true)
+    }
+
+    const handleCancelSellModal = () => {
+        // We close Create Sell modal
+        setShowSellModal(false)
     }
 
     //////////////////////////////////
@@ -170,7 +227,7 @@ export function ProfileHeader() {
                         <a className="mr-4 p-6">🖼 My Profile</a>
                     </Link>
                     <Button
-                        onClick={() => handleButtonClick()}
+                        onClick={() => handleOpenCollectionModal()}
                         style={{
                             backgroundColor: "none",
                             borderStyle: "hidden",
@@ -185,21 +242,44 @@ export function ProfileHeader() {
                     >
                         🧙‍♂️ Create Collection
                     </Button>
+                    <Button
+                        onClick={() => handleOpenSellModal()}
+                        style={{
+                            backgroundColor: "none",
+                            borderStyle: "hidden",
+                            cursor: "pointer",
+                            fontSize: "16px",
+                            marginRight: "40px",
+                            padding: 0,
+                            textAlign: "left",
+                            width: "auto",
+                            color: "whitesmoke",
+                        }}
+                    >
+                        🤑 Sell NFT
+                    </Button>
                     {/* this style does nothing, just placeholder */}
                     <ChainsTwo style={BorderBottomOutlined} />
                     <ConnectButton moralisAuth={false} />
                 </div>
             </nav>
             <CollectionModal
-                showModal={showModal}
-                setShowModal={setShowModal}
-                handleCancel={handleCancel}
+                showCollectionModal={showCollectionModal}
+                handleCancelCollectionModal={handleCancelCollectionModal}
+            />
+            <SellModal
+                showSellModal={showSellModal}
+                handleCancelSellModal={handleCancelSellModal}
             />
         </>
     )
 }
 
-const CollectionModal = ({ showModal, handleCancel }) => {
+///////////////////////////////
+//  Create Collection Modal  //
+///////////////////////////////
+
+const CollectionModal = ({ showCollectionModal, handleCancelCollectionModal }) => {
     const [loading, setLoading] = useState(false)
     const [currentStep, setCurrentStep] = useState(0)
     const [collectionData, setCollectionData] = useState(null)
@@ -478,8 +558,8 @@ const CollectionModal = ({ showModal, handleCancel }) => {
         <div>
             <Modal
                 title={`Create New Collection`}
-                open={showModal}
-                onCancel={contractCreated && !nftMinted ? null : handleCancel} // If contract is created but NFT not minted, don't allow user to close modal
+                open={showCollectionModal}
+                onCancel={contractCreated && !nftMinted ? null : handleCancelCollectionModal} // If contract is created but NFT not minted, don't allow user to close modal
                 footer={null}
             >
                 {loading ? (

@@ -9,6 +9,7 @@ import NFTList_OffSale from "@/components/NFTList_OffSale"
 import { useWeb3Contract, useMoralis } from "react-moralis"
 import { avatars, collectionDescriptions } from "@/constants/fluff"
 import contractFactoryAbi from "@/constants/MP_ContractFactory.json"
+import contract721Abi from "@/constants/MP_721_Contract.json"
 import { Fragment } from "react"
 import nftAbi from "@/constants/BasicNft.json"
 import { truncateStr } from "@/utils/truncate"
@@ -17,7 +18,6 @@ import { networkMapping } from "@/constants"
 import { NftFilters, Alchemy, Network } from "alchemy-sdk"
 import { ethers } from "ethers"
 
-// import Image from "next/image"
 import { useEffect, useState } from "react"
 import { Layout, Row, Col, Typography, Image, Card, Space, Button, Avatar, Divider } from "antd"
 
@@ -32,8 +32,9 @@ export default function CollectionPage({ NFTListData, collectionData, profileDat
     const [showAll, setShowAll] = useState(true)
     const [showAuction, setShowAuction] = useState(false)
     const [showFixedPrice, setShowFixedPrice] = useState(false)
+    const [isOwner, setIsOwner] = useState()
 
-    const { isWeb3Enabled, chainId } = useMoralis()
+    const { isWeb3Enabled, chainId, account } = useMoralis()
     const { runContractFunction } = useWeb3Contract()
 
     const allOnSaleNfts = [...NFTListData.activeFixedPriceItems, ...NFTListData.activeAuctionItems]
@@ -47,6 +48,12 @@ export default function CollectionPage({ NFTListData, collectionData, profileDat
         offSaleNfts = NFTListData.inActiveItems
     }
 
+    // console.log("NFTListData: ", NFTListData)
+    // console.log("allOnSaleNfts: ", allOnSaleNfts)
+    // console.log("offSaleNfts: ", offSaleNfts)
+    // console.log("collectionData: ", collectionData)
+    // console.log("profileData: ", profileData)
+
     ////////////////////////////////////
     //  For Sale/Not For Sale Filter  //
     ////////////////////////////////////
@@ -54,9 +61,22 @@ export default function CollectionPage({ NFTListData, collectionData, profileDat
     // toggle show user NFT items or marcopolo collections
     const handleShowOnSale = () => {
         if (showOnSale) {
-            setShowOnSale(false) // if showCollections is true, set it to false
+            setShowOnSale(false) // if showOnSale is true, set it to false
         } else {
-            setShowOnSale(true) // if showCollections is false, set it to true
+            setShowOnSale(true) // if showOnSale is false, set it to true
+        }
+    }
+
+    ///////////////////////////
+    //  Set Owner/Not Owner  //
+    ///////////////////////////
+
+    // toggle if current user is the collection owner
+    const handleSetOwner = () => {
+        if (isOwner) {
+            setIsOwner(false) // if isOwner is true, set it to false
+        } else {
+            setIsOwner(true) // if isOwner is false, set it to true
         }
     }
 
@@ -86,34 +106,48 @@ export default function CollectionPage({ NFTListData, collectionData, profileDat
     //  Get Page Image  //
     //////////////////////
 
-    async function random_N(len) {
-        return Math.floor(Math.random() * len) // random element picker
-    }
-
     async function updateUI() {
-        let tokenURI
-        let len = await random_N(allOnSaleNfts.length)
+        const noNFTs = Object.values(NFTListData).every((array) => array.length === 0)
 
-        if (allOnSaleNfts[len].nftAddress) {
-            let params = {
-                abi: nftAbi,
-                contractAddress: allOnSaleNfts[len].nftAddress,
-                functionName: "tokenURI",
-                params: {
-                    tokenId: allOnSaleNfts[len].tokenId,
-                },
-            }
+        // if (!allOnSaleNfts.length) {
+        //     setShowOnSale(false) // filter offSale NFTs if there are no onSale
+        // }
 
-            tokenURI = await runContractFunction({ params: params })
-
-            console.log("tokenURI: ", tokenURI)
-        } else {
-            tokenURI = offSaleNfts[random_N(offSaleNfts.length)].tokenUri
+        if (noNFTs === true) {
+            console.log(`${noNFTs} NFTListData passed from getServerSideProps is empty!`)
+            return
         }
+
+        let tokenURI
+        let nft
+
+        if (allOnSaleNfts.length > 0) {
+            nft = allOnSaleNfts[0]
+
+            if (nft.nftAddress) {
+                const params = {
+                    abi: nftAbi,
+                    contractAddress: nft.nftAddress,
+                    functionName: "tokenURI",
+                    params: {
+                        tokenId: nft.tokenId,
+                    },
+                }
+
+                tokenURI = await runContractFunction({ params: params })
+            }
+        }
+
+        if (!tokenURI && offSaleNfts.length > 0) {
+            nft = offSaleNfts[0]
+            tokenURI = nft.tokenUri
+        }
+
+        console.log("tokenURI: ", tokenURI)
 
         if (tokenURI) {
             const requestURL = tokenURI.replace("ipfs://", "https://ipfs.io/ipfs/")
-            const tokenURIResponse = await (await fetch(requestURL)).json()
+            const tokenURIResponse = await fetch(requestURL).then((res) => res.json())
             const imageURI = tokenURIResponse.image
             const imageURIURL = imageURI.replace("ipfs://", "https://ipfs.io/ipfs/")
             setImageURI(imageURIURL)
@@ -135,13 +169,8 @@ export default function CollectionPage({ NFTListData, collectionData, profileDat
 
     // run updateUI if isWeb3Enabled changes
     useEffect(() => {
-        if (isWeb3Enabled) {
-            updateUI()
-        }
-        if (!allOnSaleNfts.length) {
-            setShowOnSale(false)
-        }
-    }, [isWeb3Enabled])
+        updateUI()
+    }, [account])
 
     return (
         <div>
@@ -162,10 +191,13 @@ export default function CollectionPage({ NFTListData, collectionData, profileDat
                     <Content>
                         <div>
                             <Title style={{ paddingTop: "20px" }} level={1}>
-                                {collectionData.name} Collection
+                                {collectionData.name}
                             </Title>
                             {/* can use gutter in row instead of span in col */}
-                            <CollectionInfoCard collectionData={collectionData} />
+                            <CollectionInfoCard
+                                isOwner={isOwner}
+                                collectionData={collectionData}
+                            />
                             <Row gutter={[30, 30]}>
                                 <Col span={12}>
                                     <Title
@@ -235,7 +267,7 @@ export default function CollectionPage({ NFTListData, collectionData, profileDat
                                         sale!
                                     </div>
                                 )
-                            ) : allOnSaleNfts.length > 0 ? (
+                            ) : offSaleNfts.length > 0 ? (
                                 <Fragment>
                                     <div>
                                         <NFTList_OffSale NFTListData={offSaleNfts} />{" "}
@@ -255,7 +287,16 @@ export default function CollectionPage({ NFTListData, collectionData, profileDat
     )
 }
 
-const CollectionInfoCard = ({ collectionData }) => {
+const CollectionInfoCard = ({ isOwner, collectionData }) => {
+    const MintButtonStyle = {
+        background: collectionData.remainingSupply ? "blue" : "grey",
+        color: "white",
+        // fontSize: "20px",
+        display: "flex",
+        justifyContent: "center",
+        alignItems: "center",
+    }
+
     return (
         <Row gutter={[16, 16]}>
             <Col span={4}>
@@ -297,6 +338,21 @@ const CollectionInfoCard = ({ collectionData }) => {
                     </a>
                 </Link>
             </Col>
+            {!isOwner ? (
+                <Col span={3}>
+                    {/* <Title type="secondary" level={5}>
+                        {"Mint"}
+                    </Title> */}
+                    <div style={{ height: "30px" }}></div>
+                    <Button
+                        style={MintButtonStyle}
+                        disabled={collectionData.remainingSupply}
+                        shape="round"
+                    >
+                        Mint Token
+                    </Button>
+                </Col>
+            ) : null}
         </Row>
     )
 }
@@ -342,28 +398,47 @@ export async function getServerSideProps({ params }) {
     }
 `
 
-    ///////////////////////////////
-    //  Check if contract is MP  //
-    ///////////////////////////////
+    ////////////////////////////////////////////////////
+    // Check if contract is MP & has remaining tokens //
+    ////////////////////////////////////////////////////
 
-    async function isMPContract(collectionAddress) {
+    async function checkMPContract(collectionAddress) {
         const provider = new ethers.providers.JsonRpcProvider(process.env.NEXT_PUBLIC_ALCHEMY_URL)
-        const contract = new ethers.Contract(contractFactoryAddress, contractFactoryAbi, provider)
+        const contractFactory = new ethers.Contract(
+            contractFactoryAddress,
+            contractFactoryAbi,
+            provider
+        )
 
         try {
-            const isMarcopoloContract = await contract.s_deployedContracts(collectionAddress)
+            const deployerAddress = await contractFactory.s_deployedContracts(collectionAddress)
 
-            if (isMarcopoloContract === "0x0000000000000000000000000000000000000000") {
-                return false
+            if (deployerAddress === "0x0000000000000000000000000000000000000000") {
+                return { contractDeployer: false }
             } else {
-                return isMarcopoloContract
+                // Assuming you have the ABI for the collectionAddress contract
+                const collectionContract = new ethers.Contract(
+                    collectionAddress,
+                    contract721Abi,
+                    provider
+                )
+
+                const maxSupply = await collectionContract.s_maxSupply()
+                const totalSupply = await collectionContract.s_totalSupply()
+
+                const difference = maxSupply.sub(totalSupply)
+                const remainingSupply = difference.gt(0) // checks if difference is greater than 0
+
+                // Return the difference
+                return { contractDeployer: deployerAddress, remainingSupply: remainingSupply }
             }
         } catch (error) {
             console.log("error: ", error)
         }
     }
 
-    const isMarcopoloContract = await isMPContract(collectionAddress)
+    const mpCheck = await checkMPContract(collectionAddress)
+    console.log("mpCheck: ", mpCheck)
 
     //////////////////////////////
     //  Collection Information  //
@@ -385,10 +460,10 @@ export async function getServerSideProps({ params }) {
         name: collection.name,
         symbol: collection.symbol,
         tokenType: collection.tokenType,
-        supply: collection.totalSupply ?? "Unknown",
+        remainingSupply: mpCheck.remainingSupply,
         contractDeployer:
             collection.contractDeployer ??
-            (isMarcopoloContract !== false ? isMarcopoloContract : "Unknown"),
+            (mpCheck.contractDeployer !== false ? mpCheck.contractDeployer : "Unknown"),
     }
 
     console.log("collectionData: ", collectionData)
@@ -418,7 +493,7 @@ export async function getServerSideProps({ params }) {
     //////////////////////
 
     // if the collection is not MP and it has no On-Sale items; redirect user to 500 page
-    if (isMarcopoloContract === false && activeItems.length === 0) {
+    if (mpCheck.contractDeployer === false && activeItems.length === 0) {
         return {
             redirect: {
                 destination: "/500",
@@ -431,7 +506,7 @@ export async function getServerSideProps({ params }) {
     //  Get all NFTs for MP contract  //
     ////////////////////////////////////
 
-    if (isMarcopoloContract !== false) {
+    if (mpCheck.contractDeployer !== false) {
         const { ownedNfts } = await alchemy.nft.getNftsForOwner(collectionData.contractDeployer, {
             contractAddresses: [collectionAddress],
             omitMetadata: false,
@@ -455,31 +530,10 @@ export async function getServerSideProps({ params }) {
         ///////////////////////////////////////
 
         // we display these tokens only for MP contracts
-        // const inActiveItems = allNFTs.filter((nft) => {
-        //     // Check if the tokenId of `nft` is not present in `activeItems`
-        //     return !activeItems.some((item) => item.tokenId === nft.tokenId)
-        // })
-
-        const inActiveItems = [
-            {
-                tokenId: "0",
-                imageUri: "https://ipfs.io/ipfs/QmUqqBKUKz81wgewM7FK1RtZwwn1pc4vyy2Tqpi7YyWkqM",
-                tokenUri: "https://ipfs.io/ipfs/QmWSvWTSfZD7hntgcsv4R66VmJqP7n4nfRsRs2YLuKUvte",
-                nftAddress: collectionAddress,
-            },
-            {
-                tokenId: "12",
-                imageUri: "https://ipfs.io/ipfs/QmUqqBKUKz81wgewM7FK1RtZwwn1pc4vyy2Tqpi7YyWkqM",
-                tokenUri: "https://ipfs.io/ipfs/QmWSvWTSfZD7hntgcsv4R66VmJqP7n4nfRsRs2YLuKUvte",
-                nftAddress: collectionAddress,
-            },
-            {
-                tokenId: "5",
-                imageUri: "https://ipfs.io/ipfs/QmUqqBKUKz81wgewM7FK1RtZwwn1pc4vyy2Tqpi7YyWkqM",
-                tokenUri: "https://ipfs.io/ipfs/QmWSvWTSfZD7hntgcsv4R66VmJqP7n4nfRsRs2YLuKUvte",
-                nftAddress: collectionAddress,
-            },
-        ]
+        const inActiveItems = allNFTs.filter((nft) => {
+            // Check if the tokenId of `nft` is not present in `activeItems`
+            return !activeItems.some((item) => item.tokenId === nft.tokenId)
+        })
 
         newData.inActiveItems = inActiveItems
     }
@@ -498,45 +552,3 @@ export async function getServerSideProps({ params }) {
         props: { NFTListData: newData, collectionData, profileData },
     }
 }
-
-// export async function getStaticPaths() {
-//     const client = new ApolloClient({
-//         cache: new InMemoryCache(),
-//         uri: process.env.NEXT_PUBLIC_SUBGRAPH_URL,
-//     })
-
-//     const { data } = await client.query({
-//         query: GET_ACTIVE_COLLECTIONS,
-//     })
-
-//     console.log("data: ", data)
-
-//     const allItems = [
-//         ...data.activeFixedPriceItems,
-//         ...data.activeAuctionItems,
-//         ...data.contractCreateds,
-//     ]
-
-//     // get unique addresses for MP collections and external collections
-//     const uniqueItems = [
-//         ...new Set(
-//             allItems.map(({ contractAddress, nftAddress }) => contractAddress || nftAddress)
-//         ),
-//     ]
-
-//     const allPaths = uniqueItems.map((item) => {
-//         return {
-//             params: {
-//                 collectionAddress: item,
-//             },
-//         }
-//     })
-
-//     return {
-//         paths: allPaths, // tell app which routes to create in build time
-//         fallback: false,
-//         // fallback: true, // tell app to create route if it doesn't exist and serve a "fallback" page version while it's being created
-//         // fallback: blocking, // tell app to create route if it doesn't exist and wait for it to be created
-//         // fallback: false, // user puts in an incorrect route; 404 will be returned
-//     }
-// }

@@ -13,7 +13,7 @@ export default function NFTList_OffSale({ NFTListData }) {
 
     // console.log("walletNftsLIST: ", walletNfts)
     console.log("marketplaceAddress: ", marketplaceAddress)
-    console.log("NFTListData: ", NFTListData)
+    console.log("NFTListData_16: ", NFTListData)
 
     return (
         <div className="container mx-auto">
