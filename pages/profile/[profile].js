@@ -54,8 +54,6 @@ export default function Profile({
 
     const [toSellNfts, setToSellNfts] = useState({ collectionNfts: [null], walletNfts: [null] })
     const [showCollections, setShowCollections] = useState(false)
-    const [walletNfts, setWalletNfts] = useState([null])
-    const [collectionNfts, setCollectionNfts] = useState([null])
 
     const [showAllInactive, setShowAllInactive] = useState(true)
     const [showPolo, setShowPolo] = useState(false)
@@ -75,7 +73,11 @@ export default function Profile({
         (contract) => contract.contractAddress
     )
 
-    console.log("contractAddresses: ", contractAddresses)
+    const allOnSaleNfts = [...onSaleNfts.activeFixedPriceItems, ...onSaleNfts.activeAuctionItems] // [{}, {}, {}]
+
+    console.log("contractAddresses_78: ", contractAddresses)
+    console.log("allOnSaleNfts_79: ", allOnSaleNfts) // nftAddress && tokenId
+    console.log("onSaleNfts_80: ", onSaleNfts)
 
     //////////////////////
     //  NFTs in Wallet  //
@@ -99,9 +101,26 @@ export default function Profile({
                 })
 
                 // remove any nfts from user's MP Collections addressess
-                const filteredNfts = nfts.ownedNfts.filter(
-                    (nft) => !contractAddresses.includes(nft.contract.address)
-                )
+                // const filteredNfts = nfts.ownedNfts.filter(
+                //     (nft) => !contractAddresses.includes(nft.contract.address)
+                // )
+
+                const filteredNfts = nfts.ownedNfts.filter((nft) => {
+                    // Condition 1 --> Remove any Marcopolo contract NFTs
+                    const addressMatch = !contractAddresses.includes(nft.contract.address)
+
+                    // Condition 2 --> Remove any already On Sale NFTs
+                    const tokenIdAndAddressMatch = !allOnSaleNfts.some(
+                        (onSaleNft) =>
+                            onSaleNft.tokenId === nft.tokenId &&
+                            onSaleNft.nftAddress === nft.contract.address
+                    )
+
+                    // If both conditions are true, keep the nft in the array
+                    return addressMatch && tokenIdAndAddressMatch
+                })
+
+                console.log("filteredNfts: ", filteredNfts)
 
                 const walletNfts = await getValidTokenUris(filteredNfts)
 
@@ -352,11 +371,10 @@ export default function Profile({
     //  NFT List Data  //
     /////////////////////
 
-    const allOnSaleNfts = [...onSaleNfts.activeFixedPriceItems, ...onSaleNfts.activeAuctionItems] // [{}, {}, {}]
     const allToSellNfts = [...toSellNfts.collectionNfts, ...toSellNfts.walletNfts] // [{}, {}, {}]
 
-    // console.log("allOnSaleNfts: ", allOnSaleNfts)
-    // console.log("allToSellNfts: ", allToSellNfts)
+    console.log("allOnSaleNfts: ", allOnSaleNfts)
+    console.log("allToSellNfts: ", allToSellNfts)
 
     // filtering of On Sale NFTs
     const filteredOnSaleNfts = showFixedPrice
@@ -685,7 +703,8 @@ export async function getServerSideProps({ params }) {
 
     const GET_USER_ACTIVE_ITEMS = gql`
     {
-        activeFixedPriceItems(where: { seller: "${profile}" }) {
+        activeFixedPriceItems(where: { seller: "${profile}", 
+        buyer: "0x0000000000000000000000000000000000000000"}) {
         id
         buyer
         seller

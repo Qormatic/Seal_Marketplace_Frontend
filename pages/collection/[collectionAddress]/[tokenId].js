@@ -17,6 +17,7 @@ import { ethers } from "ethers"
 import Link from "next/link"
 import TokenModal from "@/components/TokenModal"
 import { useEffect, useState } from "react"
+import { NftFilters, Alchemy, Network, Utils } from "alchemy-sdk"
 import {
     Layout,
     Row,
@@ -731,52 +732,19 @@ export async function getServerSideProps({ params, res }) {
 
     console.log("data: ", data)
 
-    // const mockAuctions = [
-    // {
-    //     __typename: "ActiveAuctionItem", // ongoing auction
-    //     id: "0x70xdb13cbda9cfa26cf5ab62b622a3488e212097c9b",
-    //     nftAddress: "0xdb13cbda9cfa26cf5ab62b622a3488e212097c9b",
-    //     tokenId: "7",
-    //     seller: "0xa6de4e91ce03321be8b947d2936d13b4e6d9b42f",
-    //     reservePrice: "200000000000000000",
-    //     startTime: "1682874000",
-    //     endTime: "1683046800",
-    //     buyer: "0x0000000000000000000000000000000000000000",
-    //     highestBid: "300000000000000000",
-    //     resulted: false,
-    //     canceled: false,
-    // },
-    // {
-    //     __typename: "ActiveAuctionItem", // finished auction no winner
-    //     id: "0x70xdb13cbda9cfa26cf5ab62b622a3488e212097c9b",
-    //     nftAddress: "0xdb13cbda9cfa26cf5ab62b622a3488e212097c9b",
-    //     tokenId: "7",
-    //     seller: "0xa6de4e91ce03321be8b947d2936d13b4e6d9b42f",
-    //     reservePrice: "200000000000000000",
-    //     startTime: "1682874000",
-    //     endTime: "1682150000",
-    //     buyer: "0x0000000000000000000000000000000000000000",
-    //     highestBid: null,
-    //     resulted: false,
-    //     canceled: false,
-    // },
-    // {
-    //     __typename: "ActiveAuctionItem", // finished auction with winner
-    //     id: "0x70xdb13cbda9cfa26cf5ab62b622a3488e212097c9b",
-    //     nftAddress: "0xdb13cbda9cfa26cf5ab62b622a3488e212097c9b",
-    //     tokenId: "7",
-    //     seller: "0xa6de4e91ce03321be8b947d2936d13b4e6d9b42f",
-    //     reservePrice: "200000000000000000",
-    //     startTime: "1682874000",
-    //     endTime: "1682150000",
-    //     buyer: "0x865C2d460d0c577DD31Db62abE8C89bB9465E1A9",
-    //     highestBid: "300000000000000000",
-    //     resulted: false,
-    //     canceled: false,
-    // },
-    // ]
+    const alchemy = new Alchemy({
+        apiKey: process.env.NEXT_PUBLIC_ALCHEMY_API_KEY,
+        network: Network.MATIC_MUMBAI,
+    })
 
-    // console.log("data: ", data)
+    const logs = await alchemy.core.getLogs({
+        fromBlock: "0x0",
+        toBlock: "latest",
+        address: collectionAddress,
+        topics: ["0xff4078d3a7633c1bd56ae05b46cf944f917a32264ef635cbc026a7efe2e47368"],
+    })
+
+    console.log("logs: ", logs)
 
     // if token is listed for fixed price sale, it will be the only item returned; no historical fixed price sales
     // if token is listed for auction, the most recent will be displayed first; historical auctions also returned
@@ -838,37 +806,47 @@ export async function getServerSideProps({ params, res }) {
     return { props: { data: filteredTokenActivity[0], tokenProvenance } }
 }
 
-// export async function getStaticPaths() {
-//     const client = new ApolloClient({
-//         cache: new InMemoryCache(),
-//         uri: process.env.NEXT_PUBLIC_SUBGRAPH_URL,
-//     })
-
-//     const { data } = await client.query({
-//         query: GET_ACTIVE_ITEMS,
-//     })
-
-//     const allItems = [...data.activeFixedPriceItems, ...data.activeAuctionItems]
-
-//     const uniqueItems = [...new Set(allItems.map(({ id }) => id))] // return array of unique item.id
-
-//     const allPaths = uniqueItems.map((id) => {
-//         const obj = allItems.find((item) => item.id === id) // return array of items for each item.id
-//         return {
-//             params: {
-//                 collectionAddress: obj.nftAddress,
-//                 tokenId: obj.tokenId,
-//             },
-//         }
-//     })
-
-//     // console.log("allPaths: ", allPaths)
-
-//     return {
-//         paths: allPaths, // tell app which routes to create in build time
-//         fallback: false,
-//         // fallback: true, // tell app to create route if it doesn't exist and serve a "fallback" page version while it's being created
-//         // fallback: blocking, // tell app to create route if it doesn't exist and wait for it to be created
-//         // fallback: false, // user puts in an incorrect route; 404 will be returned
-//     }
-// }
+// const mockAuctions = [
+// {
+//     __typename: "ActiveAuctionItem", // ongoing auction
+//     id: "0x70xdb13cbda9cfa26cf5ab62b622a3488e212097c9b",
+//     nftAddress: "0xdb13cbda9cfa26cf5ab62b622a3488e212097c9b",
+//     tokenId: "7",
+//     seller: "0xa6de4e91ce03321be8b947d2936d13b4e6d9b42f",
+//     reservePrice: "200000000000000000",
+//     startTime: "1682874000",
+//     endTime: "1683046800",
+//     buyer: "0x0000000000000000000000000000000000000000",
+//     highestBid: "300000000000000000",
+//     resulted: false,
+//     canceled: false,
+// },
+// {
+//     __typename: "ActiveAuctionItem", // finished auction no winner
+//     id: "0x70xdb13cbda9cfa26cf5ab62b622a3488e212097c9b",
+//     nftAddress: "0xdb13cbda9cfa26cf5ab62b622a3488e212097c9b",
+//     tokenId: "7",
+//     seller: "0xa6de4e91ce03321be8b947d2936d13b4e6d9b42f",
+//     reservePrice: "200000000000000000",
+//     startTime: "1682874000",
+//     endTime: "1682150000",
+//     buyer: "0x0000000000000000000000000000000000000000",
+//     highestBid: null,
+//     resulted: false,
+//     canceled: false,
+// },
+// {
+//     __typename: "ActiveAuctionItem", // finished auction with winner
+//     id: "0x70xdb13cbda9cfa26cf5ab62b622a3488e212097c9b",
+//     nftAddress: "0xdb13cbda9cfa26cf5ab62b622a3488e212097c9b",
+//     tokenId: "7",
+//     seller: "0xa6de4e91ce03321be8b947d2936d13b4e6d9b42f",
+//     reservePrice: "200000000000000000",
+//     startTime: "1682874000",
+//     endTime: "1682150000",
+//     buyer: "0x865C2d460d0c577DD31Db62abE8C89bB9465E1A9",
+//     highestBid: "300000000000000000",
+//     resulted: false,
+//     canceled: false,
+// },
+// ]

@@ -111,13 +111,24 @@ export default function MyNFT_Box({
     //  List Fixed-Price Handlers  //
     /////////////////////////////////
 
+    const handleListFormSubmit = (values) => {
+        console.log("VALUES: ", values)
+
+        approveAndList(values.listPrice.toString())
+
+        console.log("handleListFormSubmit complete")
+    }
+
     async function approveAndList(price) {
         console.log("Approving...")
         setLoading(true)
-        // const nftAddress = data.data[0].inputResult
-        // const tokenId = data.data[1].inputResult
+
+        console.log("price_myNFTBOX: ", price)
+
         // the const "formattedPrice" takes the input price in human readable form, converts it to Ethereum readable form & then changes it to string
         const formattedPrice = ethers.utils.parseUnits(price, "ether").toString()
+
+        console.log("formattedPrice_myNFTBOX: ", formattedPrice)
 
         // define the "approve" function call we need to interact with our marketplace contract
         const approveOptions = {
@@ -138,7 +149,7 @@ export default function MyNFT_Box({
             onCancel: () => setLoading(false),
             // console.log any error returned. You should include this for any runContractFunction
             onError: (error) => {
-                console.log(error), setLoading(false)
+                console.log(error), setLoading(false), message.error(`List Item: Failed`)
             },
         })
     }
@@ -163,7 +174,9 @@ export default function MyNFT_Box({
             // trigger "handleListSuccess" if "listItem" is successful which, in turn, shows user a notification
             onSuccess: handleListSuccess,
             // console.log any error returned
-            onError: (error) => console.log(error),
+            onError: (error) => {
+                console.log(error), setLoading(false), message.error(`List Item: Failed`)
+            },
         })
     }
 
@@ -267,7 +280,7 @@ export default function MyNFT_Box({
             onCancel: () => setLoading(false),
             // console.log any error returned. You should include this for any runContractFunction
             onError: (error) => {
-                console.log(error), setLoading(false)
+                console.log(error), setLoading(false), message.error(`Create Auction: Failed`)
             },
         })
     }
@@ -311,7 +324,9 @@ export default function MyNFT_Box({
             // trigger "handleAuctionSuccess" if "createAuction" is successful which, in turn, shows user a notification
             onSuccess: handleAuctionSuccess,
             // console.log any error returned
-            onError: (error) => console.log(error),
+            onError: (error) => {
+                console.log(error), setLoading(false), message.error(`Create Auction: Failed`)
+            },
         })
     }
 
@@ -374,20 +389,7 @@ export default function MyNFT_Box({
                         title={`List "${collectionName} #${tokenId}" For Sale`}
                         open={modal}
                         onCancel={() => setModal({ visible: false, key: null })}
-                        // onOk={() => list(nftToSend, price)}
-                        // okText="List"
-                        footer={[
-                            <Button danger onClick={() => setModal({ visible: false, key: null })}>
-                                Cancel
-                            </Button>,
-                            <Button
-                                onClick={() => approveAndList(price)}
-                                type="primary"
-                                className={styles.button}
-                            >
-                                List NFT
-                            </Button>,
-                        ]}
+                        footer={null}
                     >
                         <Spin spinning={loading} tip="Listing Item">
                             <img
@@ -399,15 +401,83 @@ export default function MyNFT_Box({
                                     marginBottom: "15px",
                                 }}
                             />
-                            <Input
-                                addonBefore="Listing Price"
-                                className={styles.centered}
-                                style={{ width: "60%" }}
-                                autoFocus
-                                placeholder="Eth Listing Price, e.g. 0.1"
-                                onChange={(event) => setPrice(event.target.value)}
-                                // onChange captures each change as your typing and assigns to setPrice. You can't pass price direct to button without useState
-                            />
+                            <Form
+                                id="listForm"
+                                labelCol={{
+                                    span: 7,
+                                }}
+                                wrapperCol={{
+                                    span: 16,
+                                }}
+                                layout="horizontal"
+                                style={{
+                                    maxWidth: 600,
+                                }}
+                                onFinish={handleListFormSubmit} // onFinish accurately captures final form values
+                            >
+                                <Form.Item
+                                    name="listPrice"
+                                    initialValue={0.1}
+                                    rules={[
+                                        {
+                                            required: true,
+                                            message: "You must enter an amount!",
+                                        },
+                                        {
+                                            validator: (_, value) =>
+                                                value > 0.1
+                                                    ? Promise.resolve()
+                                                    : Promise.reject(
+                                                          new Error(
+                                                              "Amount must be greater than to 0.1"
+                                                          )
+                                                      ),
+                                        },
+                                    ]}
+                                    label={
+                                        <span>
+                                            Price&nbsp;
+                                            <Tooltip
+                                                title="Enter amount greater than 0.1"
+                                                placement="right"
+                                            >
+                                                <InfoCircleOutlined />
+                                            </Tooltip>
+                                        </span>
+                                    }
+                                >
+                                    <InputNumber
+                                        name="listPrice"
+                                        style={{ width: "30%" }}
+                                        min="0.0001"
+                                        step="0.0001"
+                                    />
+                                </Form.Item>
+                                <Form.Item
+                                    wrapperCol={{
+                                        offset: 8,
+                                        span: 16,
+                                    }}
+                                >
+                                    <Button
+                                        type="danger"
+                                        size="large"
+                                        style={{ borderColor: "black", marginRight: "10px" }}
+                                        onClick={() => setModal({ visible: false, key: null })}
+                                    >
+                                        Cancel
+                                    </Button>
+
+                                    <Button
+                                        type="primary"
+                                        size="large"
+                                        style={{ backgroundColor: "#1890ff" }}
+                                        htmlType="submit"
+                                    >
+                                        Submit
+                                    </Button>
+                                </Form.Item>
+                            </Form>
                         </Spin>
                     </Modal>
                 </div>
@@ -417,23 +487,7 @@ export default function MyNFT_Box({
                         title={`Create "${collectionName} #${tokenId}" Auction`}
                         open={modal}
                         onCancel={() => setModal({ visible: false, key: null })}
-                        // onOk={() => list(nftToSend, price)}
-                        // okText="List"
-                        footer={[
-                            <Button danger onClick={handleCancel}>
-                                Cancel
-                            </Button>,
-                            // Clicking this button will trigger the form's onFinish handler
-                            <Button
-                                key="submit"
-                                type="primary"
-                                form="auctionForm"
-                                htmlType="submit"
-                                className={styles.button}
-                            >
-                                Create Auction
-                            </Button>,
-                        ]}
+                        footer={null}
                     >
                         <Spin spinning={loading} tip="Creating Auction">
                             <img
@@ -519,6 +573,30 @@ export default function MyNFT_Box({
                                         showTime
                                         format="DD-MM-YYYY HH:mm"
                                     />
+                                </Form.Item>
+                                <Form.Item
+                                    wrapperCol={{
+                                        offset: 8,
+                                        span: 16,
+                                    }}
+                                >
+                                    <Button
+                                        type="danger"
+                                        size="large"
+                                        style={{ borderColor: "black", marginRight: "10px" }}
+                                        onClick={() => setModal({ visible: false, key: null })}
+                                    >
+                                        Cancel
+                                    </Button>
+
+                                    <Button
+                                        type="primary"
+                                        size="large"
+                                        style={{ backgroundColor: "#1890ff" }}
+                                        htmlType="submit"
+                                    >
+                                        Submit
+                                    </Button>
                                 </Form.Item>
                             </Form>
                         </Spin>

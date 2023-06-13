@@ -1,6 +1,7 @@
 import Link from "next/link"
 import placeholder from "../../public/images/placeholder.png"
 import Image from "next/image"
+import { truncateStr, formatUnits } from "@/utils/truncate"
 import { Card } from "antd"
 
 const { Meta } = Card
@@ -44,6 +45,14 @@ export default function Collection_Box({ name, address, symbol }) {
                                         >
                                             {symbol}
                                         </h1>
+                                        <p
+                                            style={{
+                                                fontSize: "12px",
+                                                // fontWeight: "bold",
+                                            }}
+                                        >
+                                            {truncateStr(address, 15)}{" "}
+                                        </p>
                                     </div>
                                 }
                             />
