@@ -1,1 +1,72 @@
-[{"type":"event","anonymous":false,"name":"ContractCreated","inputs":[{"type":"address","name":"owner","indexed":false},{"type":"address","name":"contractAddress","indexed":false}]},{"type":"event","anonymous":false,"name":"OwnershipTransferred","inputs":[{"type":"address","name":"previousOwner","indexed":true},{"type":"address","name":"newOwner","indexed":true}]},{"type":"function","name":"create721Contract","constant":false,"payable":false,"inputs":[{"type":"string","name":"_name"},{"type":"string","name":"_symbol"},{"type":"string","name":"_baseURI"},{"type":"uint256","name":"_maxSupply"},{"type":"uint256","name":"_royaltiesPercentage"},{"type":"address","name":"_royaltiesReceiver"},{"type":"address","name":"_auction"},{"type":"address","name":"_marketplace"},{"type":"address","name":"creator"}],"outputs":[{"type":"address"}]},{"type":"function","name":"owner","constant":true,"stateMutability":"view","payable":false,"inputs":[],"outputs":[{"type":"address"}]},{"type":"function","name":"renounceOwnership","constant":false,"payable":false,"inputs":[],"outputs":[]},{"type":"function","name":"s_deployedContracts","constant":true,"stateMutability":"view","payable":false,"inputs":[{"type":"address"}],"outputs":[{"type":"address"}]},{"type":"function","name":"transferOwnership","constant":false,"payable":false,"inputs":[{"type":"address","name":"newOwner"}],"outputs":[]}]
+[
+    {
+        "type": "event",
+        "anonymous": false,
+        "name": "ContractCreated",
+        "inputs": [
+            { "type": "address", "name": "owner", "indexed": false },
+            { "type": "address", "name": "contractAddress", "indexed": false }
+        ]
+    },
+    {
+        "type": "event",
+        "anonymous": false,
+        "name": "OwnershipTransferred",
+        "inputs": [
+            { "type": "address", "name": "previousOwner", "indexed": true },
+            { "type": "address", "name": "newOwner", "indexed": true }
+        ]
+    },
+    {
+        "type": "function",
+        "name": "create721Contract",
+        "constant": false,
+        "payable": false,
+        "inputs": [
+            { "type": "string", "name": "_name" },
+            { "type": "string", "name": "_symbol" },
+            { "type": "string", "name": "_baseURI" },
+            { "type": "uint256", "name": "_maxSupply" },
+            { "type": "uint256", "name": "_royaltiesPercentage" },
+            { "type": "address", "name": "_royaltiesReceiver" },
+            { "type": "address", "name": "_auction" },
+            { "type": "address", "name": "_marketplace" },
+            { "type": "address", "name": "creator" }
+        ],
+        "outputs": [{ "type": "address" }]
+    },
+    {
+        "type": "function",
+        "name": "owner",
+        "constant": true,
+        "stateMutability": "view",
+        "payable": false,
+        "inputs": [],
+        "outputs": [{ "type": "address" }]
+    },
+    {
+        "type": "function",
+        "name": "renounceOwnership",
+        "constant": false,
+        "payable": false,
+        "inputs": [],
+        "outputs": []
+    },
+    {
+        "type": "function",
+        "name": "s_deployedContracts",
+        "constant": true,
+        "stateMutability": "view",
+        "payable": false,
+        "inputs": [{ "type": "address" }],
+        "outputs": [{ "type": "address" }]
+    },
+    {
+        "type": "function",
+        "name": "transferOwnership",
+        "constant": false,
+        "payable": false,
+        "inputs": [{ "type": "address", "name": "newOwner" }],
+        "outputs": []
+    }
+]

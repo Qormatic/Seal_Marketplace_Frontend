@@ -112,6 +112,17 @@ export const GET_TOKEN_HISTORY = gql`
     query GetTokenHistory($id: ID!) {
         # In GraphQL, the exclamation mark ! after a type or a parameter indicates that it is a non-null value.
         # $id is the variable that will be passed into the query
+        tokenMinted(id: $id) {
+            id
+            minter
+            nftAddress
+            tokenId
+            block {
+                id
+                number
+                timestamp
+            }
+        }
         auctionCancelled(id: $id) {
             id
             nftAddress

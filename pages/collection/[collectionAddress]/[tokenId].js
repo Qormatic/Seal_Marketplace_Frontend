@@ -243,11 +243,15 @@ export default function NFTPage({ data, tokenProvenance }) {
 
     // title function is run by renderItem
     function title(item) {
+        console.log(item)
         const user = truncateStr(item.HighestBidder || item.seller || item.buyer || "", 15)
         const amount =
-            item.HighestBid === null || item.reservePrice === null || item.price === null
+            item.HighestBid === null ||
+            item.reservePrice === null ||
+            item.price === null ||
+            item.__typename === "Token Minted"
                 ? null
-                : item.HighestBid || item.reservePrice || item.price || " "
+                : item.HighestBid || item.reservePrice || item.price || "00000"
 
         console.log("amount1: ", amount)
         console.log("item: ", item)
@@ -637,20 +641,22 @@ const Description = ({
                     </Title>
                     <Divider type="horizontal" style={{ marginTop: "5px" }} />
                     <Row gutter={[16, 16]}>
-                        {attributes.map((attribute, index) => (
-                            <Col key={index} xs={24} sm={12} md={8}>
-                                <Card
-                                    title={Object.values(attribute)[0]}
-                                    style={{
-                                        fontSize: "16px",
-                                        font: "black",
-                                        textAlign: "center",
-                                    }}
-                                >
-                                    <p>{Object.values(attribute)[1]}</p>
-                                </Card>
-                            </Col>
-                        ))}
+                        {attributes
+                            ? attributes.map((attribute, index) => (
+                                  <Col key={index} xs={24} sm={12} md={8}>
+                                      <Card
+                                          title={Object.values(attribute)[0]}
+                                          style={{
+                                              fontSize: "16px",
+                                              font: "black",
+                                              textAlign: "center",
+                                          }}
+                                      >
+                                          <p>{Object.values(attribute)[1]}</p>
+                                      </Card>
+                                  </Col>
+                              ))
+                            : null}
                     </Row>
                     <Title level={3} style={{ marginTop: "50px" }}>
                         Details
@@ -709,14 +715,19 @@ export async function getServerSideProps({ params, res }) {
         uri: process.env.NEXT_PUBLIC_SUBGRAPH_URL,
     })
 
-    const tokenIdAsNumber = parseInt(tokenId, 10) // convert tokenId to number
-    const hexaTokenID = "0x" + tokenIdAsNumber.toString(16) // convert number to hex (1 => 0x1; 11 => 0xb)
+    // console.log("tokenId: ", tokenId)
 
-    console.log("typeOf: ", typeof tokenIdAsNumber)
-    console.log("hexaTokenID: ", hexaTokenID)
+    // const tokenIdAsNumber = parseInt(tokenId, 10) // convert tokenId to number
+    // const hexaTokenID = "0x" + tokenIdAsNumber.toString(16) // convert number to hex (1 => 0x1; 11 => 0xb)
 
-    const id = hexaTokenID + collectionAddress
-    console.log("hexaID: ", id)
+    // console.log("typeOf: ", typeof tokenIdAsNumber)
+    // console.log("hexaTokenID: ", hexaTokenID)
+
+    // const id = hexaTokenID + collectionAddress
+    // console.log("hexaID: ", id)
+
+    const id = tokenId + collectionAddress
+    console.log("id_724: ", id)
 
     const tokenHistory = await client.query({
         query: GET_TOKEN_HISTORY,
@@ -737,15 +748,6 @@ export async function getServerSideProps({ params, res }) {
         network: Network.MATIC_MUMBAI,
     })
 
-    const logs = await alchemy.core.getLogs({
-        fromBlock: "0x0",
-        toBlock: "latest",
-        address: collectionAddress,
-        topics: ["0xff4078d3a7633c1bd56ae05b46cf944f917a32264ef635cbc026a7efe2e47368"],
-    })
-
-    console.log("logs: ", logs)
-
     // if token is listed for fixed price sale, it will be the only item returned; no historical fixed price sales
     // if token is listed for auction, the most recent will be displayed first; historical auctions also returned
     const tokenActivity = [...data.activeFixedPriceItems, ...data.activeAuctionItems]
@@ -763,7 +765,7 @@ export async function getServerSideProps({ params, res }) {
     // Filter out null values
     const nonNullObjects = Object.values(tokenHistory.data).filter((obj) => obj !== null)
 
-    // console.log("nonNullObjects: ", nonNullObjects)
+    console.log("nonNullObjects: ", nonNullObjects)
 
     // Sort non-null objects by block number in ascending order
     const sortedObjects = nonNullObjects.sort((obj1, obj2) => {
@@ -803,7 +805,15 @@ export async function getServerSideProps({ params, res }) {
             }
         })
 
-    return { props: { data: filteredTokenActivity[0], tokenProvenance } }
+    console.log("filteredTokenActivity: ", filteredTokenActivity[0])
+    console.log("tokenProvenance: ", tokenProvenance)
+
+    return {
+        props: {
+            data: filteredTokenActivity[0] ? filteredTokenActivity[0] : null,
+            tokenProvenance,
+        },
+    }
 }
 
 // const mockAuctions = [

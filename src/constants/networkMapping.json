@@ -12,6 +12,6 @@
     "80001": {
         "NFTMarketplace": ["0x8bD2FeF41f0D3587489d67D4df566f51EA65a8c4"],
         "NFTAuction": ["0x34035918e9Ec2c96Cb67bECF909F14E1d5F2c4dC"],
-        "ContractFactory": ["0x207c87329135035BD30795E03dc356250FD68E15"]
+        "ContractFactory": ["0xbe4244610CF9C698AFa6fE98a31bEebC905A9830"]
     }
 }

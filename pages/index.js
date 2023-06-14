@@ -56,9 +56,6 @@ export default function Browse({ listedNfts }) {
         <div style={{ padding: "50px" }}>
             <Row>
                 <Title level={2}>Browse</Title>
-                <Button>
-                    <Title level={2}>Sell</Title>
-                </Button>
             </Row>
             <div>
                 <Divider style={{ width: "100%" }} />

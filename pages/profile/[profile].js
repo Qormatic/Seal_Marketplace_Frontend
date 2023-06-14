@@ -100,11 +100,6 @@ export default function Profile({
                     pageSize: 20,
                 })
 
-                // remove any nfts from user's MP Collections addressess
-                // const filteredNfts = nfts.ownedNfts.filter(
-                //     (nft) => !contractAddresses.includes(nft.contract.address)
-                // )
-
                 const filteredNfts = nfts.ownedNfts.filter((nft) => {
                     // Condition 1 --> Remove any Marcopolo contract NFTs
                     const addressMatch = !contractAddresses.includes(nft.contract.address)
