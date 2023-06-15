@@ -423,8 +423,8 @@ export async function getServerSideProps({ params }) {
                     provider
                 )
 
-                const maxSupply = await collectionContract.s_maxSupply()
-                const totalSupply = await collectionContract.s_totalSupply()
+                const maxSupply = await collectionContract.s_maxSupply() // total amount allowed to be minted
+                const totalSupply = await collectionContract.s_totalSupply() // current amount that has been minted
 
                 const difference = maxSupply.sub(totalSupply)
                 const remainingSupply = difference.gt(0) // checks if difference is greater than 0

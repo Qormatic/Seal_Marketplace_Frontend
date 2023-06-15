@@ -13,6 +13,7 @@ import nftAbi from "@/constants/BasicNft.json"
 import nftAuctionAbi from "@/constants/MP_NFTAuction.json"
 import { networkMapping } from "@/constants"
 import styles from "@/styles/components.module.css"
+import { avatars } from "@/constants/fluff"
 import { ethers } from "ethers"
 import Link from "next/link"
 import TokenModal from "@/components/TokenModal"
@@ -63,6 +64,7 @@ export default function NFTPage({ data, tokenProvenance }) {
         canceled,
         seller,
         buyer, // highestBidder while auction open, winningBidder if auction closed, 0x0 if no bids
+        minter,
         __typename,
     } = data
 
@@ -70,10 +72,11 @@ export default function NFTPage({ data, tokenProvenance }) {
     console.log("buyer: ", buyer)
     console.log("account: ", account)
     const userIsHighbidder = buyer === account
-    const userIsSeller = seller === account || seller === undefined
-    const formattedSellerAddress = userIsSeller ? "You" : truncateStr(seller || "", 15)
+    const owner = seller ?? minter
+    const userIsSeller = owner === account || owner === undefined
+    const formattedSellerAddress = userIsSeller ? "You" : truncateStr(owner || "", 15)
 
-    const AVATAR_URL = "https://example.com/avatar1.jpg"
+    const AVATAR_URL = avatars[Math.floor(Math.random() * avatars.length)]
 
     const { runContractFunction } = useWeb3Contract()
 
@@ -141,17 +144,15 @@ export default function NFTPage({ data, tokenProvenance }) {
         console.log("title: ", title)
 
         if (title === "Buy Now") {
-            // Open tokenModal (fixed price view)
-            setShowModal((showModal) => !showModal)
+            setShowModal((showModal) => !showModal) // Open tokenModal (fixed price view)
+        } else if (title === "Make Offer") {
+            setShowModal((showModal) => !showModal) // Open tokenModal (make offer view)
         } else if (title === "Place Bid") {
-            // Open tokenModal (auction view)
-            setShowModal((showModal) => !showModal)
+            setShowModal((showModal) => !showModal) // Open tokenModal (auction view)
         } else if (title === "Cancel Auction") {
-            // Run cancelAuction() function
-            handleCancelAuction()
+            handleCancelAuction() // Run cancelAuction() function
         } else if (title === "Result Auction") {
-            // Run resultAuction() function
-            handleResultAuction()
+            handleResultAuction() // Run resultAuction() function
         }
     }
 
@@ -234,7 +235,7 @@ export default function NFTPage({ data, tokenProvenance }) {
             <List.Item>
                 <List.Item.Meta
                     avatar={<Avatar src={AVATAR_URL} size="large" />}
-                    title={title(item)}
+                    title={createTitle(item)}
                     description={item.timestamp}
                 />
             </List.Item>
@@ -242,9 +243,10 @@ export default function NFTPage({ data, tokenProvenance }) {
     }
 
     // title function is run by renderItem
-    function title(item) {
+    function createTitle(item) {
         console.log(item)
-        const user = truncateStr(item.HighestBidder || item.seller || item.buyer || "", 15)
+        const user = truncateStr(item.HighestBidder || item.owner || item.buyer || "", 15)
+        const realUser = truncateStr(account, 15) === user ? "You" : user
         const amount =
             item.HighestBid === null ||
             item.reservePrice === null ||
@@ -253,13 +255,13 @@ export default function NFTPage({ data, tokenProvenance }) {
                 ? null
                 : item.HighestBid || item.reservePrice || item.price || "00000"
 
-        console.log("amount1: ", amount)
-        console.log("item: ", item)
+        // console.log("amount1: ", amount)
+        // console.log("item: ", item)
 
         return (
             <div style={{ display: "flex", justifyContent: "space-between" }}>
                 <span style={{ fontSize: "16px" }}>
-                    {item.__typename} by <span style={{ fontWeight: "bold" }}>{user}</span>{" "}
+                    {item.__typename} by <span style={{ fontWeight: "bold" }}>{realUser}</span>{" "}
                 </span>
                 <span
                     style={{
@@ -314,7 +316,7 @@ export default function NFTPage({ data, tokenProvenance }) {
                                         tokenId={tokenId}
                                         tokenName={tokenName}
                                         collectionName={collectionName}
-                                        seller={seller}
+                                        seller={owner}
                                         nftAddress={nftAddress}
                                         formattedSellerAddress={formattedSellerAddress}
                                     />
@@ -327,7 +329,7 @@ export default function NFTPage({ data, tokenProvenance }) {
                                                 userIsSeller={userIsSeller}
                                                 handleButtonClick={handleButtonClick}
                                             />
-                                        ) : (
+                                        ) : reservePrice ? (
                                             <AuctionDisplay
                                                 endTime={endTime}
                                                 userIsSeller={userIsSeller}
@@ -339,11 +341,16 @@ export default function NFTPage({ data, tokenProvenance }) {
                                                 handleButtonClick={handleButtonClick}
                                                 reservePrice={formatUnits(reservePrice)}
                                             />
+                                        ) : (
+                                            <OfferDisplay
+                                                userIsSeller={userIsSeller}
+                                                handleButtonClick={handleButtonClick}
+                                            />
                                         )}
                                     </Card>
                                     <OwnerDetails
                                         formattedSellerAddress={formattedSellerAddress}
-                                        seller={seller}
+                                        seller={owner}
                                     />
                                 </Col>
                             </Row>
@@ -456,6 +463,24 @@ const FixedPriceDisplay = ({ handleButtonClick, userIsSeller, price }) => {
             </Title>
             <SaleCardButton
                 title={"Buy Now"}
+                disableButton={userIsSeller}
+                handleButtonClick={handleButtonClick}
+            />
+        </>
+    )
+}
+
+const OfferDisplay = ({ handleButtonClick, userIsSeller }) => {
+    return (
+        <>
+            <Title type="secondary" level={4}>
+                Make Offer
+            </Title>
+            <Title level={3} style={{ margin: 0 }} type="primary">
+                Not Currently On Sale
+            </Title>
+            <SaleCardButton
+                title={"Make Offer"}
                 disableButton={userIsSeller}
                 handleButtonClick={handleButtonClick}
             />
@@ -743,15 +768,29 @@ export async function getServerSideProps({ params, res }) {
 
     console.log("data: ", data)
 
-    const alchemy = new Alchemy({
-        apiKey: process.env.NEXT_PUBLIC_ALCHEMY_API_KEY,
-        network: Network.MATIC_MUMBAI,
-    })
-
+    // We display page if item has a tokenMinted event or it is on sale
     // if token is listed for fixed price sale, it will be the only item returned; no historical fixed price sales
     // if token is listed for auction, the most recent will be displayed first; historical auctions also returned
     const tokenActivity = [...data.activeFixedPriceItems, ...data.activeAuctionItems]
+
+    if (tokenHistory.data.tokenMinted !== null) {
+        tokenActivity.push(tokenHistory.data.tokenMinted)
+    }
     // const mockTokenActivity = mockAuctions
+
+    //////////////////////
+    //  Redirect to 500  //
+    //////////////////////
+
+    // if tokenActivity is empty; redirect user to 500 page
+    if (tokenActivity.length === 0) {
+        return {
+            redirect: {
+                destination: "/500",
+                permanent: false,
+            },
+        }
+    }
 
     console.log("tokenActivity: ", tokenActivity)
     // console.log("mockTokenActivity: ", mockTokenActivity)
@@ -765,14 +804,14 @@ export async function getServerSideProps({ params, res }) {
     // Filter out null values
     const nonNullObjects = Object.values(tokenHistory.data).filter((obj) => obj !== null)
 
-    console.log("nonNullObjects: ", nonNullObjects)
-
     // Sort non-null objects by block number in ascending order
     const sortedObjects = nonNullObjects.sort((obj1, obj2) => {
         const block1 = obj1.block
         const block2 = obj2.block
         return block2.number - block1.number
     })
+
+    console.log("sortedObjects: ", sortedObjects)
 
     const tokenProvenance = sortedObjects
         // use spread operator to get all properties in addition to block
@@ -805,12 +844,11 @@ export async function getServerSideProps({ params, res }) {
             }
         })
 
-    console.log("filteredTokenActivity: ", filteredTokenActivity[0])
     console.log("tokenProvenance: ", tokenProvenance)
 
     return {
         props: {
-            data: filteredTokenActivity[0] ? filteredTokenActivity[0] : null,
+            data: filteredTokenActivity[0],
             tokenProvenance,
         },
     }

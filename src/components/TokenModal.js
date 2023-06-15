@@ -20,12 +20,14 @@ export default function TokenModal({ data, collectionName, showModal, setShowMod
         highestBid,
         seller,
         buyer,
+        minter,
         __typename,
     } = data
 
     const { chainId } = useMoralis()
     const [loading, setLoading] = useState(false)
     const [newBid, setNewBid] = useState("")
+    const [offer, setOffer] = useState("")
 
     const { runContractFunction } = useWeb3Contract()
 
@@ -70,6 +72,9 @@ export default function TokenModal({ data, collectionName, showModal, setShowMod
         window.location.href = "/myProfile"
     }
 
+    // console.log("PRICE: ", price)
+    // console.log("TYPE: ", typeof price)
+
     //////////////////////
     //  HandlePlaceBid  //
     //////////////////////
@@ -106,9 +111,26 @@ export default function TokenModal({ data, collectionName, showModal, setShowMod
         window.location.reload()
     }
 
+    //////////////////////
+    //  handleMakeOffer  //
+    //////////////////////
+
+    async function handleMakeOffer() {
+        setLoading(true)
+
+        console.log("!!!!!! MAKE OFFER !!!!!!")
+        console.log("!!!!!! BID: " + offer + "!!!!!!")
+
+        setLoading(false)
+        setShowModal(false)
+        message.success(`Offer Made!`)
+        // window.location.reload()
+    }
+
     useEffect(() => {
-        console.log(newBid)
-    }, [newBid])
+        console.log("newBid: ", newBid)
+        console.log("offer: ", offer)
+    }, [newBid, offer])
 
     return (
         <Modal
@@ -125,12 +147,18 @@ export default function TokenModal({ data, collectionName, showModal, setShowMod
                     onClick={
                         __typename === "ActiveFixedPriceItem"
                             ? () => handleBuyNow()
-                            : () => handlePlaceBid()
+                            : __typename === "ActiveAuctionItem"
+                            ? () => handlePlaceBid()
+                            : () => handleMakeOffer()
                     }
                     type="primary"
                     className={styles.button}
                 >
-                    {__typename === "ActiveFixedPriceItem" ? "Buy Now" : "Place Bid"}
+                    {__typename === "ActiveFixedPriceItem"
+                        ? "Buy Now"
+                        : __typename === "ActiveAuctionItem"
+                        ? "Place Bid"
+                        : "Make Offer"}
                 </Button>,
             ]}
         >
@@ -156,14 +184,12 @@ export default function TokenModal({ data, collectionName, showModal, setShowMod
                         disabled
                         // onChange captures each change as your typing and assigns to setPrice. You can't pass price direct to button without useState
                     />
-                ) : (
+                ) : __typename === "ActiveAuctionItem" ? (
                     <InputNumber
                         addonBefore={"Min Bid Required"}
                         className={styles.centered}
                         style={{ width: "60%" }}
                         autoFocus
-                        // formatter={value => ethers.utils.formatUnits(value, "ether")}
-                        // parser={(value) => ethers.utils.parseUnits(value, "ether")}
                         placeholder={ethers.utils.formatUnits(
                             reservePrice ? reservePrice : highestBid
                         )}
@@ -172,7 +198,19 @@ export default function TokenModal({ data, collectionName, showModal, setShowMod
                                 ethers.utils.parseUnits(value.toString(), "ether").toString()
                             )
                         }}
-                        // onChange captures each change as your typing and assigns to setPrice. You can't pass price direct to button without useState
+                    />
+                ) : (
+                    <InputNumber
+                        addonBefore={"Offer"}
+                        className={styles.centered}
+                        style={{ width: "60%" }}
+                        min="0.0001"
+                        step="0.0001"
+                        autoFocus
+                        placeholder={ethers.utils.formatUnits("100000000000000000", "ether")}
+                        onChange={(value) => {
+                            setOffer(ethers.utils.parseUnits(value.toString(), "ether").toString())
+                        }}
                     />
                 )}
             </Spin>
