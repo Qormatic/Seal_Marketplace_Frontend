@@ -40,6 +40,11 @@
                 "internalType": "address",
                 "name": "_marketplace",
                 "type": "address"
+            },
+            {
+                "internalType": "bool",
+                "name": "_private",
+                "type": "bool"
             }
         ],
         "stateMutability": "nonpayable",
@@ -47,7 +52,12 @@
     },
     {
         "inputs": [],
-        "name": "MP_721__MaxSupplyReached",
+        "name": "Seal_721__InvalidMintAmount",
+        "type": "error"
+    },
+    {
+        "inputs": [],
+        "name": "Seal_721__MaxSupplyReached",
         "type": "error"
     },
     {
@@ -58,7 +68,7 @@
                 "type": "uint256"
             }
         ],
-        "name": "MP_721__TokenDoesNotExist",
+        "name": "Seal_721__TokenDoesNotExist",
         "type": "error"
     },
     {
@@ -136,6 +146,31 @@
             {
                 "indexed": true,
                 "internalType": "address",
+                "name": "nftAddress",
+                "type": "address"
+            },
+            {
+                "indexed": true,
+                "internalType": "address",
+                "name": "minter",
+                "type": "address"
+            },
+            {
+                "indexed": true,
+                "internalType": "uint256",
+                "name": "tokenId",
+                "type": "uint256"
+            }
+        ],
+        "name": "TokenMinted",
+        "type": "event"
+    },
+    {
+        "anonymous": false,
+        "inputs": [
+            {
+                "indexed": true,
+                "internalType": "address",
                 "name": "from",
                 "type": "address"
             },
@@ -153,19 +188,6 @@
             }
         ],
         "name": "Transfer",
-        "type": "event"
-    },
-    {
-        "anonymous": false,
-        "inputs": [
-            {
-                "indexed": true,
-                "internalType": "uint256",
-                "name": "tokenId",
-                "type": "uint256"
-            }
-        ],
-        "name": "tokenMinted",
         "type": "event"
     },
     {
@@ -263,6 +285,11 @@
     },
     {
         "inputs": [
+            {
+                "internalType": "uint256",
+                "name": "mintAmount",
+                "type": "uint256"
+            },
             {
                 "internalType": "address",
                 "name": "_to",
@@ -383,6 +410,19 @@
     },
     {
         "inputs": [],
+        "name": "s_private",
+        "outputs": [
+            {
+                "internalType": "bool",
+                "name": "",
+                "type": "bool"
+            }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+    },
+    {
+        "inputs": [],
         "name": "s_royaltiesPercentage",
         "outputs": [
             {
@@ -402,19 +442,6 @@
                 "internalType": "address",
                 "name": "",
                 "type": "address"
-            }
-        ],
-        "stateMutability": "view",
-        "type": "function"
-    },
-    {
-        "inputs": [],
-        "name": "s_totalSupply",
-        "outputs": [
-            {
-                "internalType": "uint256",
-                "name": "",
-                "type": "uint256"
             }
         ],
         "stateMutability": "view",
@@ -519,6 +546,19 @@
             }
         ],
         "stateMutability": "view",
+        "type": "function"
+    },
+    {
+        "inputs": [
+            {
+                "internalType": "bool",
+                "name": "_state",
+                "type": "bool"
+            }
+        ],
+        "name": "togglePrivate",
+        "outputs": [],
+        "stateMutability": "nonpayable",
         "type": "function"
     },
     {

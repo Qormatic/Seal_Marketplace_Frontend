@@ -2,11 +2,13 @@ import { ConnectButton } from "web3uikit"
 import { Chains, ChainsTwo } from "@/components/Chains/Chains"
 import { CollectionForm, ArtworkForm, FinishAndPayForm } from "@/components/Forms"
 import SellModal from "@/components/SellNFT_Modal"
+import sha256 from "crypto-js/sha256"
+
 import Link from "next/link"
 import { useRouter } from "next/router"
 import { ethers } from "ethers"
-import nftMarketplaceAbi from "@/constants/MP_NFTMarketplace.json"
-import contractAbi from "@/constants/MP_721_Contract.json"
+import nftMarketplaceAbi from "@/constants/Seal_NFTMarketplace.json"
+import contractAbi from "@/constants/Seal_721_Contract.json"
 import { create } from "ipfs-http-client"
 import {
     Avatar,
@@ -70,6 +72,8 @@ export function Header() {
     const { account } = useMoralis()
     const [showCollectionModal, setShowCollectionModal] = useState(false)
     const [showSellModal, setShowSellModal] = useState(false)
+
+    console.log("useMoralis: ", useMoralis)
 
     ////////////////////////////////
     //  Collection Modal Handlers //

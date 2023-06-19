@@ -24,7 +24,7 @@ import {
     Spin,
     Card,
 } from "antd"
-import nftMarketplaceAbi from "@/constants/MP_NFTMarketplace.json"
+import nftMarketplaceAbi from "@/constants/Seal_NFTMarketplace.json"
 import { truncateStr, formatUnits } from "@/utils/truncate"
 import { bios, avatars, backgroundImage } from "@/constants/fluff"
 import { NftFilters, Alchemy, Network } from "alchemy-sdk"

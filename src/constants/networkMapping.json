@@ -10,8 +10,8 @@
         "ContractFactory": ["0x5FC8d32690cc91D4c39d9d3abcBD16989F875707"]
     },
     "80001": {
-        "NFTMarketplace": ["0x8bD2FeF41f0D3587489d67D4df566f51EA65a8c4"],
-        "NFTAuction": ["0x34035918e9Ec2c96Cb67bECF909F14E1d5F2c4dC"],
-        "ContractFactory": ["0xbe4244610CF9C698AFa6fE98a31bEebC905A9830"]
+        "NFTMarketplace": ["0x83b71Aa0Cb79a214885ab72744Aa2Cb09297C3d2"],
+        "NFTAuction": ["0x4DE38e53444963bBf0368835774FE2d9007e21eE"],
+        "ContractFactory": ["0x835FF0575695A5770d343242c1619820364c7773"]
     }
 }

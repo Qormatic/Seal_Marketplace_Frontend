@@ -1,7 +1,7 @@
 import { Modal, Input, useNotification } from "web3uikit"
 import { useState } from "react"
 import { useWeb3Contract } from "react-moralis"
-import nftMarketplaceAbi from "@/constants/MP_NFTMarketplace.json"
+import nftMarketplaceAbi from "@/constants/Seal_NFTMarketplace.json"
 import { ethers } from "ethers"
 
 // the "onOk" function below is where we connect to the web3 contract via "useWeb3Contract"

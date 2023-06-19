@@ -3,8 +3,8 @@
 
 import { useState, useEffect } from "react"
 import { useWeb3Contract, useMoralis } from "react-moralis"
-import nftMarketplaceAbi from "@/constants/MP_NFTMarketplace.json"
-import nftAuctionAbi from "@/constants/MP_NFTAuction.json"
+import nftMarketplaceAbi from "@/constants/Seal_NFTMarketplace.json"
+import nftAuctionAbi from "@/constants/Seal_NFTAuction.json"
 import nftAbi from "@/constants/BasicNft.json"
 import styles from "@/styles/components.module.css"
 import Image from "next/image"
