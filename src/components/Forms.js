@@ -22,11 +22,14 @@ import {
     InfoCircleOutlined,
     BorderBottomOutlined,
     UploadOutlined,
+    InboxOutlined,
     PlusOutlined,
     SkypeFilled,
 } from "@ant-design/icons"
 import Link from "next/link"
 import ImgCrop from "antd-img-crop"
+import CryptoJS from "crypto-js"
+import { create } from "ipfs-http-client"
 
 import { useState } from "react"
 const { Title } = Typography
@@ -34,6 +37,21 @@ const { Title } = Typography
 /////////////////////
 //  Configure IPFS //
 /////////////////////
+
+/* configure Infura auth settings */
+const projectId = process.env.NEXT_PUBLIC_INFURA_PROJECT_ID
+const projectSecret = process.env.NEXT_PUBLIC_INFURA_PROJECT_SECRET
+const auth = "Basic " + Buffer.from(projectId + ":" + projectSecret).toString("base64")
+
+/* Create an instance of the client */
+const client = create({
+    host: "ipfs.infura.io",
+    port: 5001,
+    protocol: "https",
+    headers: {
+        authorization: auth,
+    },
+})
 
 export const CollectionForm = ({ onFinish, initialValues }) => {
     return (
@@ -66,6 +84,7 @@ export const CollectionForm = ({ onFinish, initialValues }) => {
                         </Tooltip>
                     </span>
                 }
+                initialValue="The Amazing Collection"
             >
                 <Input />
             </Form.Item>
@@ -84,8 +103,31 @@ export const CollectionForm = ({ onFinish, initialValues }) => {
                         </Tooltip>
                     </span>
                 }
+                initialValue="ACN"
             >
-                <Input />
+                <Input style={{ width: "40%" }} />
+            </Form.Item>
+            <Form.Item
+                name="supply"
+                rules={[
+                    {
+                        required: true,
+                    },
+                ]}
+                label={
+                    <span>
+                        Number of Tokens&nbsp;
+                        <Tooltip
+                            title="How many tokens do you want in your collection?"
+                            placement="right"
+                        >
+                            <InfoCircleOutlined />
+                        </Tooltip>
+                    </span>
+                }
+                initialValue="100"
+            >
+                <InputNumber min={1} max={1000} />
             </Form.Item>
             <Form.Item
                 name="royaltiesPercentage"
@@ -105,6 +147,7 @@ export const CollectionForm = ({ onFinish, initialValues }) => {
                         </Tooltip>
                     </span>
                 }
+                initialValue="12"
             >
                 <InputNumber min={0} max={20} />
             </Form.Item>
@@ -126,8 +169,40 @@ export const CollectionForm = ({ onFinish, initialValues }) => {
                         </Tooltip>
                     </span>
                 }
+                initialValue="0x70bCA05c07991398B96207516f3a9D0817Eaff51"
             >
                 <Input />
+            </Form.Item>
+            <Form.Item
+                name="privateView"
+                rules={[
+                    {
+                        required: true,
+                        message: "Please select true or false!",
+                    },
+                ]}
+                label={
+                    <span>
+                        Private Visbility&nbsp;
+                        <Tooltip
+                            title="Set visibility of NFT imsages minted from this collection to private"
+                            placement="right"
+                        >
+                            <InfoCircleOutlined />
+                        </Tooltip>
+                    </span>
+                }
+                initialValue="True"
+            >
+                <Select
+                    name="privateView"
+                    options={[
+                        { label: "True", value: "true" },
+                        { label: "False", value: "false" },
+                    ]}
+                    style={{ width: "40%" }}
+                    placeholder="Select"
+                />
             </Form.Item>
             <div style={{ display: "flex", justifyContent: "center" }}>
                 <Button type="primary" htmlType="submit" style={{ backgroundColor: "#1890ff" }}>
@@ -141,27 +216,126 @@ export const CollectionForm = ({ onFinish, initialValues }) => {
 export const ArtworkForm = ({
     setFileList,
     fileList,
-    onFinish,
+    setMetadataFileList,
+    metadataFileList,
+    setImageCIDs,
+    setIpfsImagesUri,
+    // onFinish,
     initialValues,
     handlePrev,
-    handleIpfsImageUpload,
+    // handleIpfsImageUpload,
 }) => {
-    // handler for image upload
-    const handleUpload = ({ file, fileList }) => {
+    // handler for managing the fileList
+    const handleOnChange = ({ file, fileList }) => {
+        if (file.status !== "uploading") {
+            console.log(file, fileList)
+        }
+        if (file.status === "done") {
+            message.success(`${file.name} file uploaded successfully`)
+        } else if (file.status === "error") {
+            message.error(`${file.name} file upload failed.`)
+        }
         setFileList(fileList)
-        console.log("fileList_163", fileList)
+        console.log("fileList: ", fileList)
+    }
 
-        console.log(file, fileList)
+    const handleIpfsImageUpload = async (values) => {
+        console.log("fileList: ", values)
+        let fileList = values.uploadArtwork.fileList
 
-        fileList.forEach((file) => {
-            if (file.status === "done") {
-                console.log(`${file.name} file uploaded successfully`)
-            } else if (file.status === "error") {
-                console.log(`${file.name} file upload failed.`)
+        const filePromises = fileList.map((file) => transformFile(file))
+
+        const transformedFiles = await Promise.all(filePromises)
+
+        console.log("transformedFiles: ", transformedFiles)
+        console.log(transformedFiles[0].blob)
+        console.log(transformedFiles[0].fileName)
+
+        message.success("Uploading data to the server!")
+
+        // Prepare files for the directory
+        const directory = transformedFiles.map((file, i) => ({
+            path: `/${file.fileName}`, // use the original file's name
+            content: file.blob,
+        }))
+
+        console.log("directory: ", directory)
+
+        let ipfsUris = []
+        let fileResults = []
+        let directoryCid = null
+
+        try {
+            // loop that iterates over each item returned by the addAll method
+            // Each item is an object with details about one file or directory that was added to IPFS
+            for await (const result of client.addAll(directory, { wrapWithDirectory: true })) {
+                console.log("result: ", result)
+
+                // Check if the path is empty; meaning it's the directory
+                // Directory cid should be the last returned
+                if (result.path === "") {
+                    directoryCid = result.cid.toString()
+                } else {
+                    // For each file, store the result in an array to be processed later
+                    fileResults.push(result)
+                }
+            }
+            // After the loop, we should have the directory CID, so now we can generate the URIs for the files
+            fileResults.forEach((result) => {
+                ipfsUris.push(`https://ipfs.io/ipfs/${directoryCid}/${result.path}`)
+            })
+        } catch (err) {
+            console.error("Error uploading to IPFS: ", err)
+            message.error("Error uploading to IPFS!")
+            return
+        }
+
+        console.log("ipfsUris: ", ipfsUris)
+
+        // setIpfsImagesUri()
+
+        message.success("Images uploaded to IPFS successfully!")
+    }
+
+    const transformFile = (file) => {
+        console.log("file: ", file)
+        return new Promise((resolve, reject) => {
+            const reader = new FileReader()
+            reader.readAsArrayBuffer(file.originFileObj)
+
+            reader.onload = function (event) {
+                const arrayBuffer = event.target.result
+                const wordArray = CryptoJS.lib.WordArray.create(new Uint8Array(arrayBuffer))
+
+                const encrypted = CryptoJS.AES.encrypt(
+                    wordArray,
+                    process.env.NEXT_PUBLIC_CRYPTO_SECRET_KEY
+                ).toString()
+
+                const encryptedDataWithFileType = {
+                    fileType: file.type,
+                    encryptedData: encrypted,
+                }
+
+                const blob = new Blob([JSON.stringify(encryptedDataWithFileType)], {
+                    type: "application/json",
+                })
+
+                const blobject = {
+                    fileName: file.name,
+                    blob: blob,
+                }
+
+                resolve(blobject)
+            }
+
+            reader.onerror = function (error) {
+                reject(error)
             }
         })
     }
 
+    // simulate successful file upload
     const dummyRequest = ({ file, onSuccess }) => {
         setTimeout(() => {
             onSuccess("ok")
@@ -170,7 +344,7 @@ export const ArtworkForm = ({
 
     return (
         <Form
-            onFinish={onFinish}
+            onFinish={handleIpfsImageUpload}
             initialValues={initialValues}
             labelCol={{
                 span: 10,
@@ -184,86 +358,81 @@ export const ArtworkForm = ({
             }}
         >
             <Form.Item
-                name="artworkName"
+                style={{ marginTop: "20px" }}
+                name="uploadArtwork"
                 rules={[
                     {
                         required: true,
                     },
                 ]}
-                label="Artwork Name"
+                label={
+                    <span>
+                        Upload Images&nbsp;
+                        <Tooltip title="Drag and Drop up to 200 image files" placement="right">
+                            <InfoCircleOutlined />
+                        </Tooltip>
+                    </span>
+                }
             >
-                <Input />
-            </Form.Item>
-            <Form.Item
-                name="artworkDescription"
-                rules={[
-                    {
-                        required: true,
-                    },
-                ]}
-                label="Artwork Description"
-            >
-                <Input.TextArea />
-            </Form.Item>
-            <Form.Item style={{ marginTop: "20px" }} name="uploadArtwork" label="Artwork">
                 {/* To use Upload we must specify an endpoint for a file to be uploaded to. 
                 If we need to perform any checks (e.g. file size) before uploading we can use "beforeUpload" instead of "action" */}
-                <ImgCrop rotationSlider>
-                    <Upload
-                        multiple={false}
-                        maxCount={1} // maxCount for uploaded files
-                        listType="picture"
-                        accept=".png, .jpg, .jpeg"
-                        beforeUpload={handleIpfsImageUpload}
-                        action="Placeholder" // action is a required prop; it will try and POST to the string and will fail which is fine
-                        onChange={handleUpload} // called any time there is a change in the file upload status
-                        fileList={fileList} // list of all uploaded files
-                        customRequest={dummyRequest}
-                    >
-                        <Button icon={<UploadOutlined />}>Click to Upload</Button>
-                    </Upload>
-                </ImgCrop>
+                <Upload.Dragger
+                    multiple={true}
+                    maxCount={10} // maxCount for uploaded files
+                    listType="picture"
+                    accept=".png, .jpg, .jpeg"
+                    beforeUpload={() => false} // use beforeUpload as without server we've nowhere to upload - will process files one by one
+                    action="Placeholder" // action is a required prop; it will try and POST to the string and will fail which is fine
+                    fileList={fileList} // list of all uploaded files
+                    onChange={handleOnChange} // called any time there is a change in file status
+                    customRequest={dummyRequest}
+                    onDrop={(e) => {
+                        console.log("Dropped files", e.dataTransfer.files)
+                        // handleIpfsImageUpload(e.dataTransfer.files)
+                    }}
+                >
+                    {/* <Button icon={<UploadOutlined />}>Click to Upload</Button> */}
+                    <p className="ant-upload-drag-icon">
+                        <InboxOutlined />
+                    </p>
+                </Upload.Dragger>
             </Form.Item>
-            <Form.List name="artworkAttributes">
-                {(fields, { add, remove }) => (
-                    <>
-                        {fields.map((field, index) => (
-                            <Space
-                                key={index}
-                                style={{ display: "flex", marginBottom: 8 }}
-                                align="baseline"
-                            >
-                                <Form.Item
-                                    {...field}
-                                    name={[field.name, "Trait"]}
-                                    label={`Attribute ${index + 1}`}
-                                >
-                                    <Input />
-                                </Form.Item>
-                                <Form.Item {...field} name={[field.name, "Value"]} label="Value">
-                                    <InputNumber min={0} max={100} />
-                                </Form.Item>
-                                <Button type="danger" onClick={() => remove(field.name)}>
-                                    X
-                                </Button>
-                            </Space>
-                        ))}
-                        {fields.length < 3 && (
-                            <Space style={{ display: "flex", justify: "center" }}>
-                                <Button
-                                    type="dashed"
-                                    onClick={() => add()}
-                                    block
-                                    icon={<PlusOutlined />}
-                                    style={{ marginBottom: "20px" }}
-                                >
-                                    Add Artwork Attribute
-                                </Button>
-                            </Space>
-                        )}
-                    </>
-                )}
-            </Form.List>
+            {/* <Form.Item
+                style={{ marginTop: "20px" }}
+                name="uploadMetadata"
+                rules={[
+                    {
+                        required: true,
+                    },
+                ]}
+                label={
+                    <span>
+                        Upload Metadata&nbsp;
+                        <Tooltip
+                            title="Please a single metadata file that corresponds to your images image"
+                            placement="right"
+                        >
+                            <InfoCircleOutlined />
+                        </Tooltip>
+                    </span>
+                }
+            > */}
+            {/* To use Upload we must specify an endpoint for a file to be uploaded to. 
+                If we need to perform any checks (e.g. file size) before uploading we can use "beforeUpload" instead of "action" */}
+            {/* <Upload
+                    multiple={false}
+                    maxCount={1} // maxCount for uploaded files
+                    listType="text"
+                    accept=".csv"
+                    beforeUpload={() => false} // use beforeUpload as without server we've nowhere to upload - will process files one by one
+                    action="Placeholder" // action is a required prop; it will try and POST to the string and will fail which is fine
+                    fileList={metadataFileList} // list of all uploaded files
+                    onChange={handleOnChange} // called any time there is a change in file status
+                    customRequest={dummyRequest}
+                >
+                    <Button icon={<UploadOutlined />}>Click to Upload</Button>
+                </Upload>
+            </Form.Item> */}
             <Row justify="center">
                 <Button onClick={handlePrev} style={{ marginRight: 20 }}>
                     Previous

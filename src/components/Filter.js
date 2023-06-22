@@ -50,15 +50,15 @@ export function NFT_WalletFilter({ handleShowOnSaleItems, showOnSale, showSellBu
 
 // Further filters those NFTs that are ON sale
 export function NFT_OnSaleFilter({
+    fixedNftsLength,
+    auctionNftsLength,
+    allNftsLength,
     handleFixedPriceFilter,
     handleAuctionFilter,
-    handleShowAllItems,
+    handleShowAllActive,
     showFixedPrice,
     showAuction,
     showAllActive,
-    allNftsLength,
-    fixedNftsLength,
-    auctionNftsLength,
 }) {
     const allItemsButtonStyle = {
         background: showAllActive ? "black" : "white",
@@ -102,7 +102,7 @@ export function NFT_OnSaleFilter({
                 <Button
                     style={allItemsButtonStyle}
                     shape="round"
-                    onClick={() => handleShowAllItems()}
+                    onClick={() => handleShowAllActive()}
                 >
                     All Items{" "}
                     <Badge style={allItemsBadgeStyle} count={allNftsLength} overflowCount={999} />

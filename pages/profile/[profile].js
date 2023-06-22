@@ -61,6 +61,8 @@ export default function Profile({
 
     const [loading, setLoading] = useState(false)
 
+    const [decryptedImageUrl, setDecryptedImageUrl] = useState("")
+
     const previousAccount = useRef(null)
 
     const [userMPCollections, setUserMPCollections] = useState()

@@ -2,8 +2,6 @@ import { ConnectButton } from "web3uikit"
 import { Chains, ChainsTwo } from "@/components/Chains/Chains"
 import { CollectionForm, ArtworkForm, FinishAndPayForm } from "@/components/Forms"
 import SellModal from "@/components/SellNFT_Modal"
-import sha256 from "crypto-js/sha256"
-
 import Link from "next/link"
 import { useRouter } from "next/router"
 import { ethers } from "ethers"
@@ -41,6 +39,7 @@ import styles from "@/styles/components.module.css"
 import { useWeb3Contract, useMoralis } from "react-moralis"
 import { useState } from "react"
 import { networkMapping } from "@/constants"
+import CryptoJS from "crypto-js"
 
 const { Step } = Steps
 
@@ -73,18 +72,16 @@ export function Header() {
     const [showCollectionModal, setShowCollectionModal] = useState(false)
     const [showSellModal, setShowSellModal] = useState(false)
 
-    console.log("useMoralis: ", useMoralis)
-
     ////////////////////////////////
     //  Collection Modal Handlers //
     ////////////////////////////////
 
-    const handleOpenCollectionModal = () => {
+    const handleOpenCreateModal = () => {
         // We open Create Contract modal
         setShowCollectionModal(true)
     }
 
-    const handleCancelCollectionModal = () => {
+    const handleCloseCreateModal = () => {
         // We close Create Contract modal
         setShowCollectionModal(false)
     }
@@ -129,7 +126,7 @@ export function Header() {
                         </a>
                     </Link>
                     <Button
-                        onClick={() => handleOpenCollectionModal()}
+                        onClick={() => handleOpenCreateModal()}
                         style={{
                             backgroundColor: "none",
                             borderStyle: "hidden",
@@ -164,7 +161,7 @@ export function Header() {
             </nav>
             <CollectionModal
                 showCollectionModal={showCollectionModal}
-                handleCancelCollectionModal={handleCancelCollectionModal}
+                handleCloseCreateModal={handleCloseCreateModal}
             />
             <SellModal
                 showSellModal={showSellModal}
@@ -187,7 +184,7 @@ export function ProfileHeader() {
     //  Modal Handlers //
     /////////////////////
 
-    const handleOpenCollectionModal = () => {
+    const handleOpenCreateModal = () => {
         // We open Create Contract modal
         setShowCollectionModal(true)
     }
@@ -231,7 +228,7 @@ export function ProfileHeader() {
                         <a className="mr-4 p-6">🖼 My Profile</a>
                     </Link>
                     <Button
-                        onClick={() => handleOpenCollectionModal()}
+                        onClick={() => handleOpenCreateModal()}
                         style={{
                             backgroundColor: "none",
                             borderStyle: "hidden",
@@ -283,17 +280,20 @@ export function ProfileHeader() {
 //  Create Collection Modal  //
 ///////////////////////////////
 
-const CollectionModal = ({ showCollectionModal, handleCancelCollectionModal }) => {
+const CollectionModal = ({ showCollectionModal, handleCloseCreateModal }) => {
     const [loading, setLoading] = useState(false)
     const [currentStep, setCurrentStep] = useState(0)
     const [collectionData, setCollectionData] = useState(null)
     const [artworkData, setArtworkData] = useState(null)
-    const [ipfsImageUri, setIpfsImageUri] = useState(null)
     const [ipfsFileUri, setIpfsFileUri] = useState(null)
     const [contractCreated, setContractCreated] = useState(false)
     const [newContractDetails, setNewContractDetails] = useState({})
     const [nftMinted, setNftMinted] = useState(false)
     const [fileList, setFileList] = useState([])
+    const [metadataFileList, setMetadataFileList] = useState([])
+    const [ipfsImagesUri, setIpfsImagesUri] = useState([])
+
+    const [files, setFiles] = useState([])
 
     const { runContractFunction } = useWeb3Contract()
 
@@ -309,7 +309,7 @@ const CollectionModal = ({ showCollectionModal, handleCancelCollectionModal }) =
     async function createContract() {
         const contractDeployFee = 0.002
 
-        // don't stop loading and close until contract is created
+        // don't stop loading until contract is created
         setLoading(true)
         console.log("Creating Contract now...")
 
@@ -319,7 +319,7 @@ const CollectionModal = ({ showCollectionModal, handleCancelCollectionModal }) =
 
         console.log("formattedDeployFee: ", formattedDeployFee)
 
-        const contractOptions = {
+        const functionParameters = {
             abi: nftMarketplaceAbi,
             contractAddress: marketplaceAddress,
             functionName: "create721Contract",
@@ -327,15 +327,16 @@ const CollectionModal = ({ showCollectionModal, handleCancelCollectionModal }) =
             params: {
                 _name: collectionData.collectionName,
                 _symbol: collectionData.collectionSymbol,
-                _baseURI: "https://ipfs.io/ipfs/" + ipfsFileUri, // same baseURI/Metadata for all NFTs in collection
+                _baseURI: "https://ipfs.io/ipfs/" + ipfsFileUri + "/", // same baseURI/Metadata for all NFTs in collection
                 _maxSupply: 10,
                 _royaltiesPercentage: collectionData.royaltiesPercentage,
                 _royaltiesReceiver: collectionData.royaltiesReceiver,
+                _private: false,
             },
         }
 
         const tx = await runContractFunction({
-            params: contractOptions,
+            params: functionParameters,
             // console.log any error returned. You should include this for any runContractFunction
             onError: (error) => console.log(error),
         })
@@ -369,7 +370,7 @@ const CollectionModal = ({ showCollectionModal, handleCancelCollectionModal }) =
     ///////////////
 
     async function mintNFT() {
-        // don't stop loading and close until contract is created
+        // don't stop loading until nft minted
         setLoading(true)
         console.log("Minting NFT now...")
 
@@ -471,69 +472,122 @@ const CollectionModal = ({ showCollectionModal, handleCancelCollectionModal }) =
         return false
     }
 
-    ////////////////////////
-    //  IPFS Upload Image //
-    ////////////////////////
+    ////////////////////////////////
+    //  IPFS Bulk Image Uploader  //
+    ////////////////////////////////
 
-    const handleIpfsImageUpload = async (file) => {
-        try {
-            file.status = "uploading"
+    // const handleIpfsImageUpload = async (file) => {
+    //     setLoading(true)
+    //     console.log("file_476: ", file)
 
-            // Add updated file to fileList state
-            setFileList((prevFileList) => {
-                const updatedFileList = prevFileList.map((f) => {
-                    if (f.uid === file.uid) {
-                        return file
-                    } else {
-                        return f
-                    }
-                })
-                console.log(updatedFileList)
-                return updatedFileList
-            })
+    //     try {
+    //         file.status = "uploading"
 
-            console.log("353: ", file, fileList)
+    //         // Add updated file to fileList state
+    //         setFileList((prevFileList) => {
+    //             const updatedFileList = prevFileList.map((f) => {
+    //                 if (f.uid === file.uid) {
+    //                     return file
+    //                 } else {
+    //                     return f
+    //                 }
+    //             })
+    //             console.log("updatedFileList: ", updatedFileList)
+    //             return updatedFileList
+    //         })
 
-            const fileAdded = await client.add(file)
-            // console.log("fileAdded_233: ", fileAdded)
-            setIpfsImageUri(fileAdded.cid)
+    //         console.log("file_494: ", file, fileList)
 
-            // Update file status to "done"
-            file.status = "done"
+    //         // FileReader is core JS class for handling files in JavaScript
+    //         //      -> Used to read the contents of files.
+    //         const reader = new FileReader()
 
-            setFileList((prevFileList) => {
-                const updatedFileList = prevFileList.map((f) => {
-                    if (f.uid === file.uid) {
-                        return file
-                    } else {
-                        return f
-                    }
-                })
-                return updatedFileList
-            })
+    //         // Start the read operation; when finished onLoad is triggered with the result (event)
+    //         //      -> We use readAsArrayBuffer to read because CryptoJS requires the file data to be in that format to perform the encryption.
+    //         reader.readAsArrayBuffer(file)
 
-            console.log("373: ", file, fileList)
+    //         // Define event handler for the onload event of the FileReader object
+    //         //      -> The onload event is fired when reader.readAsArrayBuffer has successfully completed reading the file.
+    //         reader.onload = async function (event) {
+    //             // result of the read operation which is in ArrayBuffer format
+    //             //      -> ArrayBuffer is a block of raw memory
+    //             const arrayBuffer = event.target.result
 
-            message.success("File uploaded to IPFS successfully!")
+    //             // converts the ArrayBuffer into Uint8Array and then WordArray
+    //             //      -> A Uint8Array is a typed array that represents an array of 8-bit unsigned integers.
+    //             //      -> A WordArray is a type used by the CryptoJS library that represents an array of 32-bit words
+    //             const wordArray = CryptoJS.lib.WordArray.create(new Uint8Array(arrayBuffer))
 
-            console.log("NEW_fileList: ", fileList)
-        } catch (error) {
-            console.log("Error uploading file to IPFS: ", error)
-            // Update the file upload status
-            file.status = "error"
+    //             // CryptoJS encrypts the wordArray
+    //             const encrypted = CryptoJS.AES.encrypt(
+    //                 wordArray,
+    //                 process.env.NEXT_PUBLIC_CRYPTO_SECRET_KEY
+    //             ).toString()
 
-            setFileList((prevFileList) => {
-                const updatedFileList = prevFileList.map((f) => {
-                    if (f.uid === file.uid) {
-                        return file
-                    } else {
-                        return f
-                    }
-                })
-                return updatedFileList
-            })
-        }
-    }
+    //             // Put file.type and encryptedData together in a data struct so we know into which format the file needs to be decrypted
+    //             const encryptedDataWithFileType = {
+    //                 fileType: file.type,
+    //                 encryptedData: encrypted,
+    //             }
+
+    //             /*
+    //                 A BLOB (Binary Large OBject) is an object in JavaScript that represents immutable raw data.
+    //                 Blobs represent data that isn't necessarily in a JavaScript-native format.
+    //                 They are used to store and work with data that can't be stored in the traditional JSON-based storage and transmission systems.
+    //                 The Blob constructor allows you to create blobs in JavaScript by taking two arguments: an array of data parts, and an options object.
+    //             */
+    //             const blob = new Blob([JSON.stringify(encryptedDataWithFileType)], {
+    //                 type: "application/json",
+    //             })
+
+    //             setFiles((prevFiles) => [...prevFiles, blob]) //
+
+    //             // The size param returned by IPFS is the total size of the data, in bytes, that was added to IPFS
+    //             // It also includes the overhead of the data structures used by IPFS to manage and retrieve the data.
+    //             const fileAdded = await client.add(blob)
+    //             console.log("fileAdded Size: ", fileAdded.size)
+    //             console.log("fileAdded_233: ", fileAdded)
+    //             setIpfsImageUri(fileAdded.cid)
+
+    //             // Update file status to 'done'
+    //             file.status = "done"
+
+    //             setFileList((prevFileList) => {
+    //                 const updatedFileList = prevFileList.map((f) => {
+    //                     if (f.uid === file.uid) {
+    //                         return file
+    //                     } else {
+    //                         return f
+    //                     }
+    //                 })
+    //                 return updatedFileList
+    //             })
+
+    //             console.log("file_527: ", file, fileList)
+
+    //             message.success("Image uploaded to IPFS successfully!")
+
+    //             console.log("NEW_fileList: ", fileList)
+    //         }
+    //     } catch (error) {
+    //         console.log("Error uploading file to IPFS: ", error)
+
+    //         // Update the file upload status
+    //         file.status = "error"
+
+    //         setFileList((prevFileList) => {
+    //             const updatedFileList = prevFileList.map((f) => {
+    //                 if (f.uid === file.uid) {
+    //                     return file
+    //                 } else {
+    //                     return f
+    //                 }
+    //             })
+    //             return updatedFileList
+    //         })
+    //     }
+    //     setLoading(false)
+    // }
 
     ////////////
     //  Forms //
@@ -542,10 +596,13 @@ const CollectionModal = ({ showCollectionModal, handleCancelCollectionModal }) =
     const forms = [
         <CollectionForm onFinish={handleFinishCollection} initialValues={collectionData} />,
         <ArtworkForm
-            onFinish={handleFinishArtwork}
+            // onFinish={handleFinishArtwork}
             initialValues={artworkData}
             handlePrev={handlePrev}
-            handleIpfsImageUpload={handleIpfsImageUpload}
+            // handleIpfsImageUpload={handleIpfsImageUpload}
+            setMetadataFileList={setMetadataFileList}
+            metadataFileList={metadataFileList}
+            setIpfsImagesUri={setIpfsImagesUri}
             setFileList={setFileList}
             fileList={fileList}
         />,
@@ -563,7 +620,7 @@ const CollectionModal = ({ showCollectionModal, handleCancelCollectionModal }) =
             <Modal
                 title={`Create New Collection`}
                 open={showCollectionModal}
-                onCancel={contractCreated && !nftMinted ? null : handleCancelCollectionModal} // If contract is created but NFT not minted, don't allow user to close modal
+                onCancel={contractCreated && !nftMinted ? null : handleCloseCreateModal} // If contract is created but NFT not minted, don't allow user to close modal
                 footer={null}
             >
                 {loading ? (
