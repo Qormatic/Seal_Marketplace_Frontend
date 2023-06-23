@@ -289,9 +289,7 @@ const CollectionModal = ({ showCollectionModal, handleCloseCreateModal }) => {
     const [contractCreated, setContractCreated] = useState(false)
     const [newContractDetails, setNewContractDetails] = useState({})
     const [nftMinted, setNftMinted] = useState(false)
-    const [fileList, setFileList] = useState([])
-    const [metadataFileList, setMetadataFileList] = useState([])
-    const [ipfsImagesUri, setIpfsImagesUri] = useState([])
+    const [baseUri, setBaseUri] = useState("")
 
     const [files, setFiles] = useState([])
 
@@ -472,123 +470,6 @@ const CollectionModal = ({ showCollectionModal, handleCloseCreateModal }) => {
         return false
     }
 
-    ////////////////////////////////
-    //  IPFS Bulk Image Uploader  //
-    ////////////////////////////////
-
-    // const handleIpfsImageUpload = async (file) => {
-    //     setLoading(true)
-    //     console.log("file_476: ", file)
-
-    //     try {
-    //         file.status = "uploading"
-
-    //         // Add updated file to fileList state
-    //         setFileList((prevFileList) => {
-    //             const updatedFileList = prevFileList.map((f) => {
-    //                 if (f.uid === file.uid) {
-    //                     return file
-    //                 } else {
-    //                     return f
-    //                 }
-    //             })
-    //             console.log("updatedFileList: ", updatedFileList)
-    //             return updatedFileList
-    //         })
-
-    //         console.log("file_494: ", file, fileList)
-
-    //         // FileReader is core JS class for handling files in JavaScript
-    //         //      -> Used to read the contents of files.
-    //         const reader = new FileReader()
-
-    //         // Start the read operation; when finished onLoad is triggered with the result (event)
-    //         //      -> We use readAsArrayBuffer to read because CryptoJS requires the file data to be in that format to perform the encryption.
-    //         reader.readAsArrayBuffer(file)
-
-    //         // Define event handler for the onload event of the FileReader object
-    //         //      -> The onload event is fired when reader.readAsArrayBuffer has successfully completed reading the file.
-    //         reader.onload = async function (event) {
-    //             // result of the read operation which is in ArrayBuffer format
-    //             //      -> ArrayBuffer is a block of raw memory
-    //             const arrayBuffer = event.target.result
-
-    //             // converts the ArrayBuffer into Uint8Array and then WordArray
-    //             //      -> A Uint8Array is a typed array that represents an array of 8-bit unsigned integers.
-    //             //      -> A WordArray is a type used by the CryptoJS library that represents an array of 32-bit words
-    //             const wordArray = CryptoJS.lib.WordArray.create(new Uint8Array(arrayBuffer))
-
-    //             // CryptoJS encrypts the wordArray
-    //             const encrypted = CryptoJS.AES.encrypt(
-    //                 wordArray,
-    //                 process.env.NEXT_PUBLIC_CRYPTO_SECRET_KEY
-    //             ).toString()
-
-    //             // Put file.type and encryptedData together in a data struct so we know into which format the file needs to be decrypted
-    //             const encryptedDataWithFileType = {
-    //                 fileType: file.type,
-    //                 encryptedData: encrypted,
-    //             }
-
-    //             /*
-    //                 A BLOB (Binary Large OBject) is an object in JavaScript that represents immutable raw data.
-    //                 Blobs represent data that isn't necessarily in a JavaScript-native format.
-    //                 They are used to store and work with data that can't be stored in the traditional JSON-based storage and transmission systems.
-    //                 The Blob constructor allows you to create blobs in JavaScript by taking two arguments: an array of data parts, and an options object.
-    //             */
-    //             const blob = new Blob([JSON.stringify(encryptedDataWithFileType)], {
-    //                 type: "application/json",
-    //             })
-
-    //             setFiles((prevFiles) => [...prevFiles, blob]) //
-
-    //             // The size param returned by IPFS is the total size of the data, in bytes, that was added to IPFS
-    //             // It also includes the overhead of the data structures used by IPFS to manage and retrieve the data.
-    //             const fileAdded = await client.add(blob)
-    //             console.log("fileAdded Size: ", fileAdded.size)
-    //             console.log("fileAdded_233: ", fileAdded)
-    //             setIpfsImageUri(fileAdded.cid)
-
-    //             // Update file status to 'done'
-    //             file.status = "done"
-
-    //             setFileList((prevFileList) => {
-    //                 const updatedFileList = prevFileList.map((f) => {
-    //                     if (f.uid === file.uid) {
-    //                         return file
-    //                     } else {
-    //                         return f
-    //                     }
-    //                 })
-    //                 return updatedFileList
-    //             })
-
-    //             console.log("file_527: ", file, fileList)
-
-    //             message.success("Image uploaded to IPFS successfully!")
-
-    //             console.log("NEW_fileList: ", fileList)
-    //         }
-    //     } catch (error) {
-    //         console.log("Error uploading file to IPFS: ", error)
-
-    //         // Update the file upload status
-    //         file.status = "error"
-
-    //         setFileList((prevFileList) => {
-    //             const updatedFileList = prevFileList.map((f) => {
-    //                 if (f.uid === file.uid) {
-    //                     return file
-    //                 } else {
-    //                     return f
-    //                 }
-    //             })
-    //             return updatedFileList
-    //         })
-    //     }
-    //     setLoading(false)
-    // }
-
     ////////////
     //  Forms //
     ////////////
@@ -596,15 +477,10 @@ const CollectionModal = ({ showCollectionModal, handleCloseCreateModal }) => {
     const forms = [
         <CollectionForm onFinish={handleFinishCollection} initialValues={collectionData} />,
         <ArtworkForm
-            // onFinish={handleFinishArtwork}
             initialValues={artworkData}
             handlePrev={handlePrev}
-            // handleIpfsImageUpload={handleIpfsImageUpload}
-            setMetadataFileList={setMetadataFileList}
-            metadataFileList={metadataFileList}
-            setIpfsImagesUri={setIpfsImagesUri}
-            setFileList={setFileList}
-            fileList={fileList}
+            setBaseUri={setBaseUri}
+            setLoading={setLoading}
         />,
         <FinishAndPayForm
             createContract={createContract}

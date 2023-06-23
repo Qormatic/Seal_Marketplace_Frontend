@@ -7,6 +7,7 @@ import {
     Select,
     Tooltip,
     Input,
+    List,
     DatePicker,
     InputNumber,
     Steps,
@@ -22,7 +23,10 @@ import {
     InfoCircleOutlined,
     BorderBottomOutlined,
     UploadOutlined,
+    FileOutlined,
     InboxOutlined,
+    DeleteOutlined,
+    PaperClipOutlined,
     PlusOutlined,
     SkypeFilled,
 } from "@ant-design/icons"
@@ -30,6 +34,7 @@ import Link from "next/link"
 import ImgCrop from "antd-img-crop"
 import CryptoJS from "crypto-js"
 import { create } from "ipfs-http-client"
+import Papa from "papaparse"
 
 import { useState } from "react"
 const { Title } = Typography
@@ -213,20 +218,17 @@ export const CollectionForm = ({ onFinish, initialValues }) => {
     )
 }
 
-export const ArtworkForm = ({
-    setFileList,
-    fileList,
-    setMetadataFileList,
-    metadataFileList,
-    setImageCIDs,
-    setIpfsImagesUri,
-    // onFinish,
-    initialValues,
-    handlePrev,
-    // handleIpfsImageUpload,
-}) => {
-    // handler for managing the fileList
-    const handleOnChange = ({ file, fileList }) => {
+export const ArtworkForm = ({ setLoading, setBaseUri, initialValues, handlePrev }) => {
+    ////////////////////////////
+    //  File Remove from List //
+    ////////////////////////////
+
+    const [fileList, setFileList] = useState([])
+    const [metadataFileList, setMetadataFileList] = useState([])
+    const [CSVData, setCSVData] = useState({})
+    const [IpfsImagesUri, setIpfsImagesUri] = useState([])
+
+    const handleArtworkChange = ({ file, fileList }) => {
         if (file.status !== "uploading") {
             console.log(file, fileList)
         }
@@ -239,9 +241,85 @@ export const ArtworkForm = ({
         console.log("fileList: ", fileList)
     }
 
-    const handleIpfsImageUpload = async (values) => {
-        console.log("fileList: ", values)
-        let fileList = values.uploadArtwork.fileList
+    const handleMetadataChange = ({ file, fileList }) => {
+        // for CSV files, as opposed to images, we need to parse the file content into a more usable format (e.g., JSON) in this handler.
+        // Images don't need to be parsed like this because they are used in their raw format (e.g., .jpeg, .png, etc.)
+        // But CSV files are text files that represent tabular data and need to be parsed into a suitable data structure for further processing.
+
+        if (file.status !== "uploading") {
+            console.log(file, fileList)
+        }
+        if (file.status === "done") {
+            message.success(`${file.name} file uploaded successfully`)
+
+            const reader = new FileReader()
+            reader.readAsText(file.originFileObj) // Reads the file content as text
+
+            // trigger onload when finished reading
+            reader.onload = (e) => {
+                const data = Papa.parse(reader.result, { header: true }).data // reader.result contains the UNPARSED contents of the file
+                setCSVData(data)
+                console.log("CSVData after set:", data)
+            }
+        } else if (file.status === "error") {
+            message.error(`${file.name} file upload failed.`)
+        }
+        setMetadataFileList(fileList)
+        console.log("fileList: ", fileList)
+    }
+
+    ////////////////////////////
+    //  File Remove from List //
+    ////////////////////////////
+
+    const onArtworkRemove = (file) => {
+        const index = fileList.indexOf(file)
+        const newFileList = fileList.slice()
+        newFileList.splice(index, 1)
+        setFileList(newFileList)
+    }
+
+    const onMetadataRemove = (file) => {
+        const index = metadataFileList.indexOf(file)
+        const newFileList = metadataFileList.slice()
+        newFileList.splice(index, 1)
+        setMetadataFileList(newFileList)
+    }
+
+    ///////////////////////
+    //  onFinish handler //
+    ///////////////////////
+
+    async function handleSubmission(values) {
+        console.log("handleSubmission_values: ", values)
+
+        try {
+            setLoading(true)
+
+            // Assuming handleIpfsImageUpload returns a Promise
+            const newIpfsImagesUri = await handleIpfsImageUpload(values.uploadArtwork)
+
+            // Now that handleIpfsImageUpload has completed, we start handleCSVUpload using the state variable directly
+            const newCSVData = await handleCSVUpload()
+
+            const metadata = await uploadMetadata(newIpfsImagesUri, newCSVData)
+
+            console.log(metadata)
+            setLoading(false) // Now that all operations have completed, we stop the loading indicator
+        } catch (error) {
+            message.error("Upload Error, please try again in a while. You have not been charged.")
+            console.error("An error occurred during submission", error)
+            setLoading(false)
+        }
+    }
+
+    //////////////////////////////////////////
+    //  Encrypt Images & Save CIDs to State //
+    //////////////////////////////////////////
+
+    const handleIpfsImageUpload = async (artwork) => {
+        console.log("images: ", artwork)
+        let fileList = artwork.fileList
 
         const filePromises = fileList.map((file) => transformFile(file))
 
@@ -287,14 +365,16 @@ export const ArtworkForm = ({
         } catch (err) {
             console.error("Error uploading to IPFS: ", err)
             message.error("Error uploading to IPFS!")
-            return
+            throw err
         }
 
         console.log("ipfsUris: ", ipfsUris)
 
-        // setIpfsImagesUri()
+        setIpfsImagesUri(ipfsUris)
 
         message.success("Images uploaded to IPFS successfully!")
+
+        return ipfsUris
     }
 
     const transformFile = (file) => {
@@ -335,16 +415,109 @@ export const ArtworkForm = ({
         })
     }
 
-    // simulate successful file upload
-    const dummyRequest = ({ file, onSuccess }) => {
-        setTimeout(() => {
-            onSuccess("ok")
-        }, 0)
+    ///////////////////////////////////////////
+    //  Extract CSV metadata & save to State //
+    ///////////////////////////////////////////
+
+    const handleCSVUpload = async () => {
+        return new Promise((resolve, reject) => {
+            // Check if a file is available
+            if (metadataFileList.length > 0) {
+                // Get the first (and only) file from the list
+                const file = metadataFileList[0].originFileObj
+                console.log("file: ", file)
+
+                const reader = new FileReader()
+                reader.readAsText(file)
+
+                reader.onload = (e) => {
+                    const CSVData = e.target.result
+                    const jsonData = Papa.parse(CSVData, { header: true }).data // parse file into JSON and store it in state
+                    setCSVData(jsonData)
+                    console.log(jsonData) // Display the processed data
+
+                    resolve(jsonData) // Resolve the promise with the parsed data
+                }
+
+                reader.onerror = (err) => {
+                    console.error("Failed to read file!", err)
+                    reject(err) // Reject the promise with the error
+                }
+            } else {
+                console.error("No file available to upload")
+                reject(new Error("No file available to upload")) // Reject the promise with an error
+            }
+        })
+    }
+
+    /////////////////////////////////////////
+    //  Create metadata and upload to IPFS //
+    /////////////////////////////////////////
+
+    const uploadMetadata = async (IpfsImagesUri, CSVData) => {
+        console.log("IpfsImagesUri: ", IpfsImagesUri)
+        console.log("CSVData: ", CSVData)
+
+        if (IpfsImagesUri.length !== CSVData.length) {
+            throw new Error("Mismatch in the number of URIs and CSV data records.")
+        }
+
+        const IPFSMetadata = CSVData.map((data, index) => {
+            const filenameFromURI = IpfsImagesUri[index].split("/").pop()
+            const filenameFromData = data.filename
+
+            if (filenameFromURI !== filenameFromData) {
+                throw new Error(
+                    `Mismatch in filename at index ${index}. URI: ${filenameFromURI}, CSV: ${filenameFromData}`
+                )
+            }
+
+            return {
+                ...data, // unpack the object
+                image: IpfsImagesUri[index],
+            }
+        })
+
+        console.log("IPFSMetadata: ", IPFSMetadata)
+
+        // Prepare files for the directory
+        const directory = IPFSMetadata.map((metadata, index) => {
+            const metadataJSON = JSON.stringify(metadata)
+            const blob = new Blob([metadataJSON], { type: "application/json" })
+            return {
+                path: `/${metadata.filename.replace(".png", ".json")}`,
+                content: blob,
+            }
+        })
+
+        let directoryCid = null
+
+        try {
+            for await (const result of client.addAll(directory, { wrapWithDirectory: true })) {
+                console.log("result: ", result)
+
+                //  if result.path = "" its the directory cid
+                if (result.path === "") {
+                    directoryCid = result.cid.toString()
+                }
+            }
+        } catch (err) {
+            console.error("Error uploading to IPFS: ", err)
+            message.error("Error uploading to IPFS!")
+            throw err
+        }
+
+        const baseUri = `https://ipfs.io/ipfs/${directoryCid}/`
+        setBaseUri(baseUri)
+
+        console.log("baseUri: ", baseUri)
+
+        return baseUri
     }
 
     return (
         <Form
-            onFinish={handleIpfsImageUpload}
+            onFinish={handleSubmission}
             initialValues={initialValues}
             labelCol={{
                 span: 10,
@@ -357,6 +530,124 @@ export const ArtworkForm = ({
                 maxWidth: 600,
             }}
         >
+            <Form.Item
+                style={{ marginTop: "20px", width: "100%" }}
+                name="uploadMetadata"
+                rules={[
+                    {
+                        required: true,
+                    },
+                ]}
+                label={
+                    <span>
+                        Upload Metadata&nbsp;
+                        <Tooltip
+                            title="Please a single metadata file that corresponds to your images image"
+                            placement="right"
+                        >
+                            <InfoCircleOutlined />
+                        </Tooltip>
+                    </span>
+                }
+            >
+                {/* To use Upload we must specify an endpoint for a file to be uploaded to. 
+                If we need to perform any checks (e.g. file size) before uploading we can use "beforeUpload" instead of "action" */}
+                <div style={{ display: "flex", flexDirection: "column" }}>
+                    <Upload
+                        multiple={false}
+                        maxCount={1} // maxCount for uploaded files
+                        accept=".csv"
+                        listType="picture"
+                        beforeUpload={() => false} // use beforeUpload as without server we've nowhere to upload - will process files one by one
+                        action="Placeholder" // action is a required prop; it will try and POST to the string and will fail which is fine
+                        fileList={metadataFileList} // list of all uploaded files
+                        onChange={handleMetadataChange} // called any time there is a change in file status
+                        // customRequest={dummyRequest}
+                        showUploadList={false}
+
+                        // style={{ width: "150%" }}
+                    >
+                        <div style={{ width: "155%" }}>
+                            <Button icon={<UploadOutlined />}>Click to Upload</Button>
+                            {metadataFileList.length > 0 && ( // dont display list if no data
+                                <div
+                                    style={{
+                                        maxHeight: "200px",
+                                        overflow: "auto",
+                                        marginTop: "20px",
+                                    }}
+                                >
+                                    <List
+                                        itemLayout="horizontal"
+                                        dataSource={metadataFileList}
+                                        renderItem={(file) => (
+                                            <List.Item
+                                                style={{
+                                                    border: "1px solid",
+                                                    borderColor: "#bfbfbf",
+                                                    borderRadius: "5px",
+                                                    padding: "5px",
+                                                    marginBottom: "5px",
+                                                }}
+                                                actions={[
+                                                    <Button
+                                                        style={{ border: "none" }}
+                                                        onClick={(e) => {
+                                                            e.stopPropagation() // stop onclick from opening file explorer
+                                                            onMetadataRemove(file)
+                                                        }}
+                                                        icon={
+                                                            <DeleteOutlined
+                                                                style={{
+                                                                    color: "#f5222d",
+                                                                    border: "none",
+                                                                }}
+                                                            />
+                                                        }
+                                                    />,
+                                                ]}
+                                            >
+                                                <List.Item.Meta
+                                                    style={{ alignItems: "center" }}
+                                                    avatar={
+                                                        <PaperClipOutlined
+                                                            style={{
+                                                                fontSize: "25px",
+                                                                color: "#1677ff",
+                                                            }}
+                                                        />
+                                                    }
+                                                    title={
+                                                        <div
+                                                            style={{
+                                                                display: "flex",
+                                                                alignItems: "center",
+                                                            }}
+                                                        >
+                                                            <span
+                                                                style={{
+                                                                    fontSize: "14px",
+                                                                }}
+                                                            >
+                                                                {file.name.length > 15 // prevent overflow
+                                                                    ? `${file.name.substring(
+                                                                          0,
+                                                                          15
+                                                                      )}...`
+                                                                    : file.name}
+                                                            </span>
+                                                        </div>
+                                                    }
+                                                />
+                                            </List.Item>
+                                        )}
+                                    />
+                                </div>
+                            )}
+                        </div>
+                    </Upload>
+                </div>
+            </Form.Item>
             <Form.Item
                 style={{ marginTop: "20px" }}
                 name="uploadArtwork"
@@ -378,66 +669,90 @@ export const ArtworkForm = ({
                 If we need to perform any checks (e.g. file size) before uploading we can use "beforeUpload" instead of "action" */}
                 <Upload.Dragger
                     multiple={true}
-                    maxCount={10} // maxCount for uploaded files
+                    maxCount={200} // maxCount for uploaded files
                     listType="picture"
                     accept=".png, .jpg, .jpeg"
                     beforeUpload={() => false} // use beforeUpload as without server we've nowhere to upload - will process files one by one
                     action="Placeholder" // action is a required prop; it will try and POST to the string and will fail which is fine
-                    fileList={fileList} // list of all uploaded files
-                    onChange={handleOnChange} // called any time there is a change in file status
-                    customRequest={dummyRequest}
-                    onDrop={(e) => {
-                        console.log("Dropped files", e.dataTransfer.files)
-                        // handleIpfsImageUpload(e.dataTransfer.files)
-                    }}
+                    // customRequest={dummyRequest}
+                    onChange={handleArtworkChange} // called any time there is a change in file status
+                    showUploadList={false}
                 >
-                    {/* <Button icon={<UploadOutlined />}>Click to Upload</Button> */}
                     <p className="ant-upload-drag-icon">
                         <InboxOutlined />
                     </p>
+                    <p className="ant-upload-text" class={{ fontSize: "14px" }}>
+                        Click or drag files to this area to upload
+                    </p>
                 </Upload.Dragger>
+                {fileList.length > 0 && ( // dont display list if no data
+                    <div style={{ maxHeight: "250px", overflow: "auto", marginTop: "20px" }}>
+                        <List
+                            itemLayout="horizontal"
+                            dataSource={fileList}
+                            renderItem={(file) => (
+                                <List.Item
+                                    style={{
+                                        border: "1px solid",
+                                        borderColor: "#bfbfbf",
+                                        borderRadius: "5px",
+                                        padding: "5px",
+                                        marginBottom: "5px",
+                                    }} // Rounded grey border
+                                    actions={[
+                                        <Button
+                                            style={{ border: "none" }}
+                                            onClick={() => onArtworkRemove(file)}
+                                            icon={
+                                                <DeleteOutlined
+                                                    style={{ color: "#f5222d", border: "none" }}
+                                                />
+                                            }
+                                        />,
+                                    ]}
+                                >
+                                    <List.Item.Meta
+                                        style={{ alignItems: "center" }}
+                                        avatar={
+                                            <img
+                                                src={URL.createObjectURL(file.originFileObj)}
+                                                style={{ width: "50px" }}
+                                            />
+                                        }
+                                        title={
+                                            <div
+                                                style={{
+                                                    display: "flex",
+                                                    alignItems: "center",
+                                                    fontSize: "14px",
+                                                    whiteSpace: "nowrap", // Prevent text from wrapping onto new lines
+                                                    overflow: "hidden", // Prevent text from overflowing container
+                                                    textOverflow: "ellipsis", // Add '...' to end of text if it overflows container
+                                                    maxWidth: "150px", // Set a maximum width for the text container
+                                                }}
+                                            >
+                                                <span
+                                                    style={{
+                                                        fontSize: "14px",
+                                                    }}
+                                                >
+                                                    {file.name.length > 15 // prevent overflow
+                                                        ? `${file.name.substring(0, 15)}...`
+                                                        : file.name}
+                                                </span>
+                                            </div>
+                                        }
+                                    />
+                                </List.Item>
+                            )}
+                        />
+                    </div>
+                )}
             </Form.Item>
-            {/* <Form.Item
-                style={{ marginTop: "20px" }}
-                name="uploadMetadata"
-                rules={[
-                    {
-                        required: true,
-                    },
-                ]}
-                label={
-                    <span>
-                        Upload Metadata&nbsp;
-                        <Tooltip
-                            title="Please a single metadata file that corresponds to your images image"
-                            placement="right"
-                        >
-                            <InfoCircleOutlined />
-                        </Tooltip>
-                    </span>
-                }
-            > */}
-            {/* To use Upload we must specify an endpoint for a file to be uploaded to. 
-                If we need to perform any checks (e.g. file size) before uploading we can use "beforeUpload" instead of "action" */}
-            {/* <Upload
-                    multiple={false}
-                    maxCount={1} // maxCount for uploaded files
-                    listType="text"
-                    accept=".csv"
-                    beforeUpload={() => false} // use beforeUpload as without server we've nowhere to upload - will process files one by one
-                    action="Placeholder" // action is a required prop; it will try and POST to the string and will fail which is fine
-                    fileList={metadataFileList} // list of all uploaded files
-                    onChange={handleOnChange} // called any time there is a change in file status
-                    customRequest={dummyRequest}
-                >
-                    <Button icon={<UploadOutlined />}>Click to Upload</Button>
-                </Upload>
-            </Form.Item> */}
             <Row justify="center">
                 <Button onClick={handlePrev} style={{ marginRight: 20 }}>
                     Previous
                 </Button>
-                {/* htmlType="submit" submits the form; onClick triggers "handleSubmit" */}
                 <Button type="primary" htmlType="submit" style={{ backgroundColor: "#1890ff" }}>
                     Finish
                 </Button>

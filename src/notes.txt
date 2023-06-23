@@ -1,0 +1,5 @@
+Default color scheme for ant design:
+Red - #f5222d
+Grey - #bfbfbf
+Light Blue - #1890ff
+Darker Blue - #1677ff
