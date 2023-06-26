@@ -94,6 +94,8 @@ export default function NFTPage({ data, tokenProvenance }) {
         const tokenURI = await getTokenURI()
         const collectionName = await getName()
 
+        console.log("tokenURI: ", tokenURI)
+
         // We cheat a little here on decentralization by using an IPFS Gateway instead of IPFS directly because not all browsers are IPFS compatible
         // Rather than risk our FE showing blank images on some browsers, we update tokenURIs where "IPFS://" is detected to "HTTPS://"
         // The gateway "https://ipfs.io/ipfs/" is provided by the IPFS team

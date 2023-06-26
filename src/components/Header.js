@@ -283,7 +283,14 @@ export function ProfileHeader() {
 const CollectionModal = ({ showCollectionModal, handleCloseCreateModal }) => {
     const [loading, setLoading] = useState(false)
     const [currentStep, setCurrentStep] = useState(0)
-    const [collectionData, setCollectionData] = useState(null)
+    const [collectionData, setCollectionData] = useState({
+        collectionName: null,
+        collectionSymbol: null,
+        supply: null,
+        royaltiesPercentage: null,
+        royaltiesReceiver: null,
+        privateView: null,
+    })
     const [artworkData, setArtworkData] = useState(null)
     const [ipfsFileUri, setIpfsFileUri] = useState(null)
     const [contractCreated, setContractCreated] = useState(false)
@@ -325,11 +332,11 @@ const CollectionModal = ({ showCollectionModal, handleCloseCreateModal }) => {
             params: {
                 _name: collectionData.collectionName,
                 _symbol: collectionData.collectionSymbol,
-                _baseURI: "https://ipfs.io/ipfs/" + ipfsFileUri + "/", // same baseURI/Metadata for all NFTs in collection
-                _maxSupply: 10,
+                _baseURI: baseUri, // same baseURI/Metadata for all NFTs in collection
+                _maxSupply: collectionData.supply,
                 _royaltiesPercentage: collectionData.royaltiesPercentage,
                 _royaltiesReceiver: collectionData.royaltiesReceiver,
-                _private: false,
+                _private: collectionData.privateView,
             },
         }
 
@@ -367,7 +374,7 @@ const CollectionModal = ({ showCollectionModal, handleCloseCreateModal }) => {
     //  Mint NFT //
     ///////////////
 
-    async function mintNFT() {
+    async function mintNFT(_mintAmount) {
         // don't stop loading until nft minted
         setLoading(true)
         console.log("Minting NFT now...")
@@ -377,6 +384,7 @@ const CollectionModal = ({ showCollectionModal, handleCloseCreateModal }) => {
             contractAddress: newContractDetails.contractAddress,
             functionName: "mint",
             params: {
+                mintAmount: _mintAmount,
                 _to: newContractDetails.creator,
             },
         }
@@ -419,68 +427,23 @@ const CollectionModal = ({ showCollectionModal, handleCloseCreateModal }) => {
         }
     }
 
-    ///////////////////////////
-    //  Form Finish Handlers //
-    ///////////////////////////
-
-    const handleFinishCollection = (values) => {
-        // This info goes into the contract
-        setCollectionData(values)
-
-        setCurrentStep(1)
-    }
-
-    const handleFinishArtwork = async (values) => {
-        // This info goes into the Metadata
-        const { artworkAttributes, artworkDescription, artworkName, uploadArtwork } = values
-
-        setArtworkData(values)
-
-        const artworkBlob = {
-            name: artworkName,
-            description: artworkDescription,
-            image: "https://ipfs.io/ipfs/" + ipfsImageUri,
-            attributes: artworkAttributes,
-        }
-
-        handleIpfsFileUpload(artworkBlob)
-
-        setCurrentStep(2)
-    }
-
-    ///////////////////////
-    //  IPFS Upload Blob //
-    ///////////////////////
-
-    const handleIpfsFileUpload = async (artworkBlob) => {
-        const blob = new Blob([JSON.stringify(artworkBlob)], { type: "application/json" })
-
-        try {
-            const fileAdded = await client.add(blob)
-            console.log("fileAdded_209: ", fileAdded)
-
-            setIpfsFileUri(fileAdded.cid.toString())
-
-            message.success("File uploaded to IPFS successfully!")
-
-            console.log("ipfsFileUri_215: ", ipfsFileUri)
-        } catch (error) {
-            console.log("Error uploading file to IPFS: ", error)
-        }
-        return false
-    }
-
     ////////////
     //  Forms //
     ////////////
 
     const forms = [
-        <CollectionForm onFinish={handleFinishCollection} initialValues={collectionData} />,
+        <CollectionForm
+            setCurrentStep={setCurrentStep}
+            setCollectionData={setCollectionData}
+            initialValues={collectionData}
+        />,
         <ArtworkForm
             initialValues={artworkData}
             handlePrev={handlePrev}
             setBaseUri={setBaseUri}
             setLoading={setLoading}
+            setCurrentStep={setCurrentStep}
+            encryptImage={collectionData.privateView}
         />,
         <FinishAndPayForm
             createContract={createContract}
@@ -489,12 +452,19 @@ const CollectionModal = ({ showCollectionModal, handleCloseCreateModal }) => {
             mintNFT={mintNFT}
             newContractDetails={newContractDetails}
         />,
+        // <MintForm nftMinted={nftMinted} mintNFT={mintNFT} />,
+    ]
+
+    const stepsItems = [
+        { title: "Collection Details", disabled: isStepDisabled(0) },
+        { title: "Artwork Details", disabled: isStepDisabled(1) },
+        { title: "Finish", disabled: isStepDisabled(2) },
     ]
 
     return (
         <div>
             <Modal
-                title={`Create New Collection`}
+                title="Create New Collection"
                 open={showCollectionModal}
                 onCancel={contractCreated && !nftMinted ? null : handleCloseCreateModal} // If contract is created but NFT not minted, don't allow user to close modal
                 footer={null}
@@ -505,28 +475,20 @@ const CollectionModal = ({ showCollectionModal, handleCloseCreateModal }) => {
                             style={{ padding: "15px" }}
                             onChange={setCurrentStep}
                             current={currentStep}
-                            items={[
-                                { title: "Collection Details", disabled: isStepDisabled(0) },
-                                { title: "Artwork Details", disabled: isStepDisabled(1) },
-                                { title: "Finish", disabled: isStepDisabled(2) },
-                            ]}
+                            items={stepsItems}
                         />
                         {forms[currentStep]}
                     </Spin>
                 ) : (
-                    <div>
+                    <>
                         <Steps
                             style={{ padding: "15px" }}
                             onChange={setCurrentStep}
                             current={currentStep}
-                            items={[
-                                { title: "Collection Details", disabled: isStepDisabled(0) },
-                                { title: "Artwork Details", disabled: isStepDisabled(1) },
-                                { title: "Finish", disabled: isStepDisabled(2) },
-                            ]}
+                            items={stepsItems}
                         />
                         {forms[currentStep]}
-                    </div>
+                    </>
                 )}
             </Modal>
         </div>

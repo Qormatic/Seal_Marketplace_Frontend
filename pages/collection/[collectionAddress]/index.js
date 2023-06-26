@@ -9,7 +9,7 @@ import NFTList_OffSale from "@/components/NFTList_OffSale"
 import { useWeb3Contract, useMoralis } from "react-moralis"
 import { avatars, collectionDescriptions } from "@/constants/fluff"
 import contractFactoryAbi from "@/constants/Seal_ContractFactory.json"
-import contract721Abi from "@/constants/Seal_721_Contract.json"
+import contractAbi from "@/constants/Seal_721_Contract.json"
 import { Fragment } from "react"
 import nftAbi from "@/constants/BasicNft.json"
 import { truncateStr } from "@/utils/truncate"
@@ -19,7 +19,23 @@ import { NftFilters, Alchemy, Network } from "alchemy-sdk"
 import { ethers } from "ethers"
 
 import { useEffect, useState } from "react"
-import { Layout, Row, Col, Typography, Image, Card, Space, Button, Avatar, Divider } from "antd"
+import {
+    Layout,
+    Row,
+    Col,
+    Typography,
+    Image,
+    Card,
+    Modal,
+    InputNumber,
+    Spin,
+    Space,
+    message,
+    Button,
+    Avatar,
+    Divider,
+    Form,
+} from "antd"
 
 const { Header, Content, Footer } = Layout
 const { Title, Text } = Typography
@@ -32,12 +48,29 @@ export default function CollectionPage({ NFTListData, collectionData, profileDat
     const [showAll, setShowAll] = useState(true)
     const [showAuction, setShowAuction] = useState(false)
     const [showFixedPrice, setShowFixedPrice] = useState(false)
-    const [isOwner, setIsOwner] = useState()
+    const [isOwner, setIsOwner] = useState(null)
+    const [userAccount, setUserAccount] = useState("")
 
     const { isWeb3Enabled, chainId, account } = useMoralis()
     const { runContractFunction } = useWeb3Contract()
 
     const allOnSaleNfts = [...NFTListData.activeFixedPriceItems, ...NFTListData.activeAuctionItems]
+
+    //////////////////
+    //  Mint Modal  //
+    //////////////////
+
+    const [showMintModal, setShowMintModal] = useState(false)
+
+    const handleOpenMintModal = () => {
+        // We open Mint Modal
+        setShowMintModal(true)
+    }
+
+    const handleCloseMintModal = () => {
+        // We close Mint Modal
+        setShowMintModal(false)
+    }
 
     ///////////////////////////////////
     //  Get Owners not On-Sale NFTs  //
@@ -47,12 +80,6 @@ export default function CollectionPage({ NFTListData, collectionData, profileDat
     if (NFTListData.inActiveItems) {
         offSaleNfts = NFTListData.inActiveItems
     }
-
-    // console.log("NFTListData: ", NFTListData)
-    // console.log("allOnSaleNfts: ", allOnSaleNfts)
-    // console.log("offSaleNfts: ", offSaleNfts)
-    // console.log("collectionData: ", collectionData)
-    // console.log("profileData: ", profileData)
 
     ////////////////////////////////////
     //  For Sale/Not For Sale Filter  //
@@ -73,12 +100,17 @@ export default function CollectionPage({ NFTListData, collectionData, profileDat
 
     // toggle if current user is the collection owner
     const handleSetOwner = () => {
-        if (isOwner) {
-            setIsOwner(false) // if isOwner is true, set it to false
+        console.log("account: ", account)
+        console.log("collectionData.contractDeployer: ", collectionData.contractDeployer)
+
+        if (account === collectionData.contractDeployer.toLowerCase()) {
+            setIsOwner(true)
         } else {
-            setIsOwner(true) // if isOwner is false, set it to true
+            setIsOwner(false)
         }
     }
+    console.log("collectionData: ", collectionData)
+    console.log("isOwner: ", isOwner)
 
     ///////////////////////////////
     //  For Sale Filter Buttons  //
@@ -169,6 +201,7 @@ export default function CollectionPage({ NFTListData, collectionData, profileDat
 
     // run updateUI if isWeb3Enabled changes
     useEffect(() => {
+        handleSetOwner()
         updateUI()
     }, [account])
 
@@ -197,6 +230,7 @@ export default function CollectionPage({ NFTListData, collectionData, profileDat
                             <CollectionInfoCard
                                 isOwner={isOwner}
                                 collectionData={collectionData}
+                                handleOpenMintModal={handleOpenMintModal}
                             />
                             <Row gutter={[30, 30]}>
                                 <Col span={12}>
@@ -283,11 +317,17 @@ export default function CollectionPage({ NFTListData, collectionData, profileDat
                 </div>
                 <Footer />
             </Layout>
+            <MintModal
+                showMintModal={showMintModal}
+                handleCloseMintModal={handleCloseMintModal}
+                contractAddress={collectionData.address}
+                creatorAddress={collectionData.contractDeployer}
+            />
         </div>
     )
 }
 
-const CollectionInfoCard = ({ isOwner, collectionData }) => {
+const CollectionInfoCard = ({ isOwner, collectionData, handleOpenMintModal }) => {
     const MintButtonStyle = {
         background: collectionData.remainingSupply ? "blue" : "grey",
         color: "white",
@@ -338,22 +378,118 @@ const CollectionInfoCard = ({ isOwner, collectionData }) => {
                     </a>
                 </Link>
             </Col>
-            {!isOwner ? (
+            {isOwner ? (
                 <Col span={3}>
-                    {/* <Title type="secondary" level={5}>
-                        {"Mint"}
-                    </Title> */}
                     <div style={{ height: "30px" }}></div>
                     <Button
                         style={MintButtonStyle}
-                        disabled={collectionData.remainingSupply}
+                        disabled={!collectionData.remainingSupply}
                         shape="round"
+                        onClick={() => handleOpenMintModal()}
                     >
-                        Mint Token
+                        Mint Tokens
                     </Button>
                 </Col>
             ) : null}
         </Row>
+    )
+}
+
+const MintModal = ({ showMintModal, handleCloseMintModal, contractAddress, creatorAddress }) => {
+    const [mintAmount, setMintAmount] = useState(0)
+    const [loading, setLoading] = useState(0)
+
+    const { runContractFunction } = useWeb3Contract()
+
+    // Define the handle function for number input changes
+    const handleNumberChange = (value) => {
+        console.log("Value: ", value)
+        setMintAmount(value)
+    }
+
+    const onFinish = () => {
+        console.log("MINT THAT HSIT")
+        console.log(mintAmount)
+
+        mintNFT(mintAmount)
+    }
+
+    ///////////////
+    //  Mint NFT //
+    ///////////////
+
+    async function mintNFT(mintAmount) {
+        // don't stop loading until nft minted
+        setLoading(true)
+        console.log("Minting NFT now...")
+
+        const transactionOptions = {
+            abi: contractAbi,
+            contractAddress: contractAddress,
+            functionName: "mint",
+            params: {
+                mintAmount: mintAmount,
+                _to: creatorAddress,
+            },
+        }
+
+        const tx = await runContractFunction({
+            params: transactionOptions,
+            // console.log any error returned. You should include this for any runContractFunction
+            onError: (error) => console.log(error),
+        })
+
+        console.log("tx: ", tx)
+
+        const receipt = await tx.wait(1)
+
+        console.log("receipt: ", receipt)
+
+        console.log(`NEW TOKEN MINTED BY ${creatorAddress}!`)
+
+        message.success(`NFT Minted - View the NFT in your profile!`)
+
+        setLoading(false)
+        handleCloseMintModal()
+    }
+
+    return (
+        <div>
+            <Spin spinning={loading} tip="Minting">
+                <Modal
+                    title="Mint Tokens"
+                    open={showMintModal}
+                    onCancel={handleCloseMintModal}
+                    footer={null}
+                >
+                    <Form onFinish={onFinish}>
+                        <Form.Item name="mintAmount" label="Enter Mint Amount" initialValue="0">
+                            <InputNumber
+                                min={1}
+                                max={200}
+                                value={mintAmount}
+                                onChange={handleNumberChange}
+                            />
+                        </Form.Item>
+
+                        <Row justify="center">
+                            <div style={{ display: "flex", justifyContent: "center" }}>
+                                <Button onClick={handleCloseMintModal} style={{ marginRight: 20 }}>
+                                    Cancel
+                                </Button>
+                                <Button
+                                    type="primary"
+                                    htmlType="submit"
+                                    style={{ backgroundColor: "#1890ff" }}
+                                >
+                                    Finish
+                                </Button>
+                            </div>
+                        </Row>
+                    </Form>
+                </Modal>
+            </Spin>
+        </div>
     )
 }
 
@@ -419,15 +555,20 @@ export async function getServerSideProps({ params }) {
                 // Assuming you have the ABI for the collectionAddress contract
                 const collectionContract = new ethers.Contract(
                     collectionAddress,
-                    contract721Abi,
+                    contractAbi,
                     provider
                 )
 
                 const maxSupply = await collectionContract.s_maxSupply() // total amount allowed to be minted
-                const totalSupply = await collectionContract.s_totalSupply() // current amount that has been minted
+                const totalSupply = await collectionContract.totalSupply() // current amount that has been minted
+
+                console.log("maxSupply: ", maxSupply)
+                console.log("totalSupply: ", totalSupply)
 
                 const difference = maxSupply.sub(totalSupply)
                 const remainingSupply = difference.gt(0) // checks if difference is greater than 0
+
+                console.log("remainingSupply: ", remainingSupply)
 
                 // Return the difference
                 return { contractDeployer: deployerAddress, remainingSupply: remainingSupply }
@@ -437,6 +578,7 @@ export async function getServerSideProps({ params }) {
         }
     }
 
+    console.log("collectionAddress: ", collectionAddress)
     const mpCheck = await checkMPContract(collectionAddress)
     console.log("mpCheck: ", mpCheck)
 

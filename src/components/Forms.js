@@ -58,10 +58,22 @@ const client = create({
     },
 })
 
-export const CollectionForm = ({ onFinish, initialValues }) => {
+export const CollectionForm = ({ setCurrentStep, setCollectionData, initialValues }) => {
+    ///////////////////////////
+    //  Form Finish Handlers //
+    ///////////////////////////
+
+    const handleFinishCollection = (values) => {
+        console.log("Values: ", values)
+
+        setCollectionData(values)
+
+        setCurrentStep(1)
+    }
+
     return (
         <Form
-            onFinish={onFinish}
+            onFinish={handleFinishCollection}
             initialValues={initialValues}
             labelCol={{
                 span: 10,
@@ -130,9 +142,9 @@ export const CollectionForm = ({ onFinish, initialValues }) => {
                         </Tooltip>
                     </span>
                 }
-                initialValue="100"
+                initialValue="0"
             >
-                <InputNumber min={1} max={1000} />
+                <InputNumber min={1} max={200} />
             </Form.Item>
             <Form.Item
                 name="royaltiesPercentage"
@@ -152,7 +164,7 @@ export const CollectionForm = ({ onFinish, initialValues }) => {
                         </Tooltip>
                     </span>
                 }
-                initialValue="12"
+                initialValue="0"
             >
                 <InputNumber min={0} max={20} />
             </Form.Item>
@@ -188,9 +200,9 @@ export const CollectionForm = ({ onFinish, initialValues }) => {
                 ]}
                 label={
                     <span>
-                        Private Visbility&nbsp;
+                        Private View&nbsp;
                         <Tooltip
-                            title="Set visibility of NFT imsages minted from this collection to private"
+                            title="Setting to private makes minted NFT images visible only to the NFT's owner."
                             placement="right"
                         >
                             <InfoCircleOutlined />
@@ -218,10 +230,19 @@ export const CollectionForm = ({ onFinish, initialValues }) => {
     )
 }
 
-export const ArtworkForm = ({ setLoading, setBaseUri, initialValues, handlePrev }) => {
+export const ArtworkForm = ({
+    setLoading,
+    setBaseUri,
+    initialValues,
+    handlePrev,
+    setCurrentStep,
+    encryptImage,
+}) => {
     ////////////////////////////
     //  File Remove from List //
     ////////////////////////////
+
+    console.log("encryptImage: ", encryptImage)
 
     const [fileList, setFileList] = useState([])
     const [metadataFileList, setMetadataFileList] = useState([])
@@ -378,35 +399,52 @@ export const ArtworkForm = ({ setLoading, setBaseUri, initialValues, handlePrev 
     }
 
     const transformFile = (file) => {
-        console.log("file: ", file)
+        console.log("encryptImage: ", encryptImage)
+
         return new Promise((resolve, reject) => {
             const reader = new FileReader()
             reader.readAsArrayBuffer(file.originFileObj)
 
             reader.onload = function (event) {
-                const arrayBuffer = event.target.result
-                const wordArray = CryptoJS.lib.WordArray.create(new Uint8Array(arrayBuffer))
+                if (encryptImage === true) {
+                    console.log(`Encrypting Image ${file.name}`)
+                    const arrayBuffer = event.target.result
+                    const wordArray = CryptoJS.lib.WordArray.create(new Uint8Array(arrayBuffer))
 
-                const encrypted = CryptoJS.AES.encrypt(
-                    wordArray,
-                    process.env.NEXT_PUBLIC_CRYPTO_SECRET_KEY
-                ).toString()
+                    const encrypted = CryptoJS.AES.encrypt(
+                        wordArray,
+                        process.env.NEXT_PUBLIC_CRYPTO_SECRET_KEY
+                    ).toString()
 
-                const encryptedDataWithFileType = {
-                    fileType: file.type,
-                    encryptedData: encrypted,
+                    const encryptedDataWithFileType = {
+                        fileType: file.type,
+                        encryptedData: encrypted,
+                    }
+
+                    const blob = new Blob([JSON.stringify(encryptedDataWithFileType)], {
+                        type: "application/json",
+                    })
+
+                    const blobject = {
+                        fileName: file.name,
+                        blob: blob,
+                    }
+
+                    resolve(blobject)
+                } else {
+                    console.log(`Not Encrypting Image ${file.name}`)
+
+                    const blob = new Blob([event.target.result], {
+                        type: file.type,
+                    })
+
+                    const blobject = {
+                        fileName: file.name,
+                        blob: blob,
+                    }
+
+                    resolve(blobject)
                 }
-
-                const blob = new Blob([JSON.stringify(encryptedDataWithFileType)], {
-                    type: "application/json",
-                })
-
-                const blobject = {
-                    fileName: file.name,
-                    blob: blob,
-                }
-
-                resolve(blobject)
             }
 
             reader.onerror = function (error) {
@@ -512,7 +550,7 @@ export const ArtworkForm = ({ setLoading, setBaseUri, initialValues, handlePrev 
 
         console.log("baseUri: ", baseUri)
 
-        return baseUri
+        setCurrentStep(2)
     }
 
     return (
@@ -542,7 +580,7 @@ export const ArtworkForm = ({ setLoading, setBaseUri, initialValues, handlePrev 
                     <span>
                         Upload Metadata&nbsp;
                         <Tooltip
-                            title="Please a single metadata file that corresponds to your images image"
+                            title="Please a single metadata file that corresponds to your images"
                             placement="right"
                         >
                             <InfoCircleOutlined />
@@ -768,6 +806,15 @@ export const FinishAndPayForm = ({
     nftMinted,
     newContractDetails,
 }) => {
+    // Add this line to store the number input
+    const [mintAmount, setMintAmount] = useState(0)
+
+    // Define the handle function for number input changes
+    const handleNumberChange = (value) => {
+        console.log("Value: ", value)
+        setMintAmount(value)
+    }
+
     return !contractCreated ? (
         <div style={{ textAlign: "center" }}>
             <Title level={4}>Create your contract! </Title>
@@ -785,9 +832,12 @@ export const FinishAndPayForm = ({
     ) : !nftMinted ? (
         <div style={{ textAlign: "center", justifyContent: "center" }}>
             <Title level={4}>Mint your NFT now!</Title>
+            <Form.Item name="mintAmount" label="Number of NFTs to mint" initialValue="0">
+                <InputNumber min={1} max={200} value={mintAmount} onChange={handleNumberChange} />
+            </Form.Item>
             <Button
                 type="primary"
-                onClick={mintNFT}
+                onClick={() => mintNFT(mintAmount)} // Pass the mintAmount to mintNFT function
                 style={{ backgroundColor: "#1890ff", margin: "10px" }}
             >
                 Mint Now
@@ -807,13 +857,7 @@ export const FinishAndPayForm = ({
     )
 }
 
-export const MintForm = ({
-    createContract,
-    contractCreated,
-    mintNFT,
-    nftMinted,
-    newContractDetails,
-}) => {
+export const MintForm = ({ mintNFT, nftMinted }) => {
     return !contractCreated ? (
         <>
             <div>Press Create Contract to pay fee and create your contract! </div>

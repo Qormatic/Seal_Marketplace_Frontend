@@ -2,7 +2,8 @@
 import { useMoralis } from "react-moralis"
 import Collection_Box from "@/components/Collection_Box"
 import { networkMapping } from "@/constants" // when we reference a folder, we will pick up module.exports from our index.js
-import { Row, Col, Typography } from "antd"
+import { Row, Col, Typography, Spin, Tooltip } from "antd"
+import { useEffect, useState } from "react"
 
 const { Title } = Typography
 
@@ -34,9 +35,16 @@ export default function CollectionList({ userMPCollections }) {
                                 </Col>
                             ) : (
                                 <Col key={address} xs={24} sm={12} md={8} lg={6} xl={5}>
-                                    <div>
-                                        Network error, please switch to a supported network.{" "}
-                                    </div>
+                                    <Tooltip title="Loading metadata for this collection; please reload the page in a few moments">
+                                        <Spin>
+                                            <Collection_Box
+                                                key={address} // unique key required for each element in mapping; we create one here
+                                                address={address}
+                                                name={name}
+                                                symbol={symbol}
+                                            />
+                                        </Spin>
+                                    </Tooltip>
                                 </Col>
                             )
                         })

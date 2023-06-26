@@ -2,7 +2,7 @@ import Link from "next/link"
 import placeholder from "../../public/images/placeholder.png"
 import Image from "next/image"
 import { truncateStr, formatUnits } from "@/utils/truncate"
-import { Card } from "antd"
+import { Card, Tooltip } from "antd"
 
 const { Meta } = Card
 
@@ -60,7 +60,30 @@ export default function Collection_Box({ name, address, symbol }) {
                     </a>
                 </Link>
             ) : (
-                <div>Loading...</div>
+                <a>
+                    <Card
+                        style={{ width: "90%", margin: 10 }}
+                        cover={<Image src={placeholder} height="250" width="250" />}
+                    >
+                        <Meta
+                            title={
+                                <div
+                                    style={{
+                                        fontSize: "20px",
+                                        fontWeight: "bold",
+                                        overflow: "hidden",
+                                        textOverflow: "ellipsis",
+                                        // whiteSpace: "nowrap",
+                                        whiteSpace: "normal",
+                                        width: "100%",
+                                    }}
+                                >
+                                    {truncateStr(address, 15)}
+                                </div>
+                            }
+                        />
+                    </Card>
+                </a>
             )}
         </div>
     )

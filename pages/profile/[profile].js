@@ -65,7 +65,7 @@ export default function Profile({
 
     const previousAccount = useRef(null)
 
-    const [userMPCollections, setUserMPCollections] = useState()
+    const [userMPCollections, setUserMPCollections] = useState([])
 
     const { runContractFunction } = useWeb3Contract()
 
@@ -145,6 +145,42 @@ export default function Profile({
         }
     }
 
+    // const MAX_RETRIES = 20
+    // const RETRY_INTERVAL = 5000 // 5 seconds
+
+    // const getUserMPCollectionsAll = async () => {
+    //     if (account === profile) {
+    //         const alchemy = new Alchemy({
+    //             apiKey: process.env.NEXT_PUBLIC_ALCHEMY_API_KEY,
+    //             network: Network.MATIC_MUMBAI,
+    //         })
+
+    //         for (let i = 0; i < MAX_RETRIES; i++) {
+    //             try {
+    //                 const allCollectionsData = await alchemy.nft.getContractMetadataBatch(
+    //                     contractAddresses
+    //                 )
+    //                 // Check if every collection object has a 'name' property
+    //                 const allHaveNames = allCollectionsData.every(
+    //                     (collection) => collection.name !== undefined
+    //                 )
+
+    //                 if (allHaveNames) {
+    //                     setUserMPCollections(allCollectionsData)
+    //                     console.log("userMPCollections: ", userMPCollections)
+    //                     break // exit the loop as soon as we get successful data
+    //                 } else {
+    //                     console.log(`Retry ${i + 1}: Not all collections have names yet.`)
+    //                 }
+    //             } catch (error) {
+    //                 console.error(error)
+    //             }
+    //             // wait before trying again
+    //             await new Promise((resolve) => setTimeout(resolve, RETRY_INTERVAL))
+    //         }
+    //     }
+    // }
+
     const getUserMPCollectionsAll = async () => {
         if (account === profile) {
             const alchemy = new Alchemy({
@@ -158,6 +194,8 @@ export default function Profile({
                 )
 
                 setUserMPCollections(allCollectionsData)
+
+                console.log("userMPCollections: ", userMPCollections)
             } catch (error) {
                 console.error(error)
             }
@@ -752,7 +790,7 @@ export async function getServerSideProps({ params }) {
 
     const userCollections = collections.data
 
-    // console.log("userCollections: ", userCollections)
+    console.log("userCollections: ", userCollections)
 
     ///////////////////////
     //  getUserProceeds  //
