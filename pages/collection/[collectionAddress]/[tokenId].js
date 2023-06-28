@@ -16,6 +16,7 @@ import styles from "@/styles/components.module.css"
 import { avatars } from "@/constants/fluff"
 import { ethers } from "ethers"
 import Link from "next/link"
+import Image from "next/image"
 import TokenModal from "@/components/TokenModal"
 import { useEffect, useState } from "react"
 import { NftFilters, Alchemy, Network, Utils } from "alchemy-sdk"
@@ -23,7 +24,6 @@ import {
     Layout,
     Row,
     Col,
-    Image,
     Typography,
     Card,
     Button,
@@ -49,6 +49,7 @@ export default function NFTPage({ data, tokenProvenance }) {
     const [collectionName, setCollectionName] = useState("")
     const [attributes, setAttributes] = useState([])
     const [showModal, setShowModal] = useState(false)
+    const [src, setSrc] = useState(imageURI)
     const [loading, setLoading] = useState(false)
     const [auctionFinished, setAuctionFinished] = useState(false)
     const {
@@ -68,9 +69,6 @@ export default function NFTPage({ data, tokenProvenance }) {
         __typename,
     } = data
 
-    console.log("reservePrice: ", reservePrice)
-    console.log("buyer: ", buyer)
-    console.log("account: ", account)
     const userIsHighbidder = buyer === account
     const owner = seller ?? minter
     const userIsSeller = owner === account || owner === undefined
@@ -96,13 +94,19 @@ export default function NFTPage({ data, tokenProvenance }) {
 
         console.log("tokenURI: ", tokenURI)
 
-        // We cheat a little here on decentralization by using an IPFS Gateway instead of IPFS directly because not all browsers are IPFS compatible
-        // Rather than risk our FE showing blank images on some browsers, we update tokenURIs where "IPFS://" is detected to "HTTPS://"
-        // The gateway "https://ipfs.io/ipfs/" is provided by the IPFS team
-        // The other solution would be to store the image on a server (like Moralis) and call from there
+        /* 
+            We cheat a little here on decentralization by using an IPFS Gateway instead of IPFS directly because not all browsers are IPFS compatible
+            Rather than risk our FE showing blank images on some browsers, we update tokenURIs where "IPFS://" is detected to "HTTPS://"
+            The gateway "https://ipfs.io/ipfs/" is provided by the IPFS team
+            The other solution would be to store the image on a server (like Moralis) and call from there
+        */
         if (tokenURI) {
             const requestURL = tokenURI.replace("ipfs://", "https://ipfs.io/ipfs/")
+            console.log("requestURL: ", requestURL)
             const { image, name, description, attributes } = await (await fetch(requestURL)).json()
+            console.log("image", image)
+            console.log("name", name)
+            console.log("description", description)
             console.log("attributes", attributes)
             setImageURI(image.replace("ipfs://", "https://ipfs.io/ipfs/"))
             setTokenName(name)
@@ -282,6 +286,75 @@ export default function NFTPage({ data, tokenProvenance }) {
         )
     }
 
+    //////////////////////////
+    //  Handle Image Error  //
+    //////////////////////////
+
+    const handleError = () => {
+        setSrc("/images/placeholder.png")
+    }
+
+    /////////////////////
+    //  Decrypt Image  //
+    /////////////////////
+
+    async function decryptImage(imageURI) {
+        console.log("imageURI to decrypt: ", imageURI)
+        const response = await fetch(imageURI)
+        console.log("response: ", response)
+
+        const jsonData = await response.json()
+        console.log("jsonData: ", jsonData)
+
+        const encryptedString = jsonData.encryptedData
+        console.log("encryptedString: ", encryptedString)
+
+        // Decrypt the image data which returns a Wordarray
+        const decryptedData = CryptoJS.AES.decrypt(
+            encryptedString,
+            process.env.NEXT_PUBLIC_CRYPTO_SECRET_KEY
+        )
+        console.log("decryptedData: ", decryptedData)
+
+        // Convert decrypted data back to ArrayBuffer from WordArray
+        let wordArray = decryptedData
+        let byteArray = wordArrayToByteArray(wordArray, wordArray.sigBytes)
+        // Uint8Array is a type of array specifically designed to hold bytes
+        let arrayBuffer = new Uint8Array(byteArray).buffer
+
+        // Convert to blob
+        const decryptedBlob = new Blob([arrayBuffer], {
+            type: jsonData.fileType, // or whatever the original file type was
+        })
+        // Convert to object URL which can be displayed in the front end
+        const imageUrl = URL.createObjectURL(decryptedBlob)
+
+        // Return the decrypted image URL
+        console.log("decrypted imageURl: ", imageUrl)
+        return imageUrl
+    }
+
+    // Convert WordArray back into a byteArray
+    function wordArrayToByteArray(wordArray, numSigBytes) {
+        let byteArray = [], // initialise empty array
+            word,
+            i,
+            j
+
+        /*  
+            Loop over each word in WordArray where each word is a 32-bit number
+            nested loop iterates over the 4 bytes in the current word
+            extract each byte from the word and pushes it into the byteArray
+        */
+        for (i = 0; i < numSigBytes / 4; i++) {
+            word = wordArray.words[i]
+            for (j = 3; j >= 0; j--) {
+                byteArray.push((word >> (8 * j)) & 0xff)
+            }
+        }
+        return byteArray
+    }
+
     //////////////////
     //  useEffects  //
     //////////////////
@@ -290,7 +363,21 @@ export default function NFTPage({ data, tokenProvenance }) {
         if (isWeb3Enabled) {
             updateUI()
         }
-    }, [isWeb3Enabled]) // run updateUI if isWeb3Enabled
+    }, [isWeb3Enabled])
+
+    useEffect(() => {
+        if (account === owner && imageURI) {
+            decryptImage(imageURI)
+                .then((decryptedImageURI) => {
+                    setSrc(decryptedImageURI)
+                })
+                .catch(() => {
+                    handleError()
+                })
+        } else if (imageURI) {
+            setSrc(imageURI)
+        }
+    }, [account, imageURI])
 
     return (
         <div>
@@ -306,7 +393,7 @@ export default function NFTPage({ data, tokenProvenance }) {
                     <Content style={{ background: "#f7f7f7" }}>
                         <div align="center" style={{ padding: "50px" }}>
                             <Space>
-                                <Image src={imageURI} alt="Epi Image" width={400} height={400} />
+                                <Image src={src} onError={handleError} width={400} height={400} />
                             </Space>
                         </div>
                     </Content>
@@ -690,12 +777,10 @@ const Description = ({
                     </Title>
                     <Divider type="horizontal" style={{ marginTop: "5px" }} />
                     <Row>
-                        <Link href={`https://mumbai.polygonscan.com/address/${nftAddress}`}>
-                            {/* <Link href={`https://goerli.etherscan.io/address/${nftAddress}`}> */}
+                        <Link href={`https://ipfs.io/ipfs/${nftAddress}`}>
                             <a target="_blank" style={{ display: "flex", alignItems: "center" }}>
                                 <Image
-                                    src="/etherscan-logo-circle.png"
-                                    preview={false}
+                                    src="/Ipfs-logo-1024-ice-text.png"
                                     alt="Logo"
                                     width={30}
                                     height={30}
@@ -710,7 +795,7 @@ const Description = ({
                                     }}
                                     level={5}
                                 >
-                                    View on Etherscan
+                                    View token on IPFS Database
                                 </Title>
                             </a>
                         </Link>
@@ -733,8 +818,6 @@ const Description = ({
 export async function getServerSideProps({ params, res }) {
     const { tokenId, collectionAddress } = params || {}
 
-    console.log("params: ", params)
-
     // getServerSideProps & getStaticProps can be passed "context" allowing us to get any params in the route (e.g. the tokenId from the URL)
     const client = new ApolloClient({
         connectToDevTools: true,
@@ -742,20 +825,9 @@ export async function getServerSideProps({ params, res }) {
         uri: process.env.NEXT_PUBLIC_SUBGRAPH_URL,
     })
 
-    // console.log("tokenId: ", tokenId)
-
-    // const tokenIdAsNumber = parseInt(tokenId, 10) // convert tokenId to number
-    // const hexaTokenID = "0x" + tokenIdAsNumber.toString(16) // convert number to hex (1 => 0x1; 11 => 0xb)
-
-    // console.log("typeOf: ", typeof tokenIdAsNumber)
-    // console.log("hexaTokenID: ", hexaTokenID)
-
-    // const id = hexaTokenID + collectionAddress
-    // console.log("hexaID: ", id)
-
     const id = tokenId + collectionAddress
-    console.log("id_724: ", id)
 
+    // this returns all events for this token
     const tokenHistory = await client.query({
         query: GET_TOKEN_HISTORY,
         variables: { id: id },
@@ -763,6 +835,10 @@ export async function getServerSideProps({ params, res }) {
 
     console.log("tokenHistory: ", tokenHistory)
 
+    // this returns all active fixed/auction for user but there should only be one at a time?
+    // can make activeAuctionItem not activeAuctionItems? -> inefficient to filter by most recent
+    // can make activeFixedPriceItem not activeFixedPriceItems? -> inefficient to filter by zero address
+    // should add sold/resulted flag to activeFixedPriceItem
     const { data } = await client.query({
         query: GET_TOKEN_ACTIVE_ITEMS,
         variables: { id: id },
@@ -770,15 +846,16 @@ export async function getServerSideProps({ params, res }) {
 
     console.log("data: ", data)
 
-    // We display page if item has a tokenMinted event or it is on sale
-    // if token is listed for fixed price sale, it will be the only item returned; no historical fixed price sales
-    // if token is listed for auction, the most recent will be displayed first; historical auctions also returned
+    /* 
+       We display page if item has a tokenMinted event or it is on sale
+       if token is listed for fixed price sale, it will be the only item returned; no historical fixed price sales
+       if token is listed for auction, the most recent will be displayed first; historical auctions also returned
+    */
     const tokenActivity = [...data.activeFixedPriceItems, ...data.activeAuctionItems]
 
     if (tokenHistory.data.tokenMinted !== null) {
         tokenActivity.push(tokenHistory.data.tokenMinted)
     }
-    // const mockTokenActivity = mockAuctions
 
     //////////////////////
     //  Redirect to 500  //
@@ -794,14 +871,9 @@ export async function getServerSideProps({ params, res }) {
         }
     }
 
-    console.log("tokenActivity: ", tokenActivity)
-    // console.log("mockTokenActivity: ", mockTokenActivity)
-
     const filteredTokenActivity = tokenActivity.filter(
         (activity) => !activity.canceled && !activity.resulted
     )
-
-    console.log("filteredTokenActivity: ", filteredTokenActivity)
 
     // Filter out null values
     const nonNullObjects = Object.values(tokenHistory.data).filter((obj) => obj !== null)
@@ -812,8 +884,6 @@ export async function getServerSideProps({ params, res }) {
         const block2 = obj2.block
         return block2.number - block1.number
     })
-
-    console.log("sortedObjects: ", sortedObjects)
 
     const tokenProvenance = sortedObjects
         // use spread operator to get all properties in addition to block
@@ -846,6 +916,7 @@ export async function getServerSideProps({ params, res }) {
             }
         })
 
+    console.log("filteredTokenActivity: ", filteredTokenActivity[0])
     console.log("tokenProvenance: ", tokenProvenance)
 
     return {

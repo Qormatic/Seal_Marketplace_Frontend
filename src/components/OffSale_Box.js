@@ -1,11 +1,20 @@
 import Link from "next/link"
 import Image from "next/image"
+import placeholder from "../../public/images/placeholder.png"
 import { Card } from "antd"
+import { useState } from "react"
 
 const { Meta } = Card
 
 // props passed to NFTBox from index.js
 export default function OffSale_Box({ nftAddress, tokenId, imageUri }) {
+    const [src, setSrc] = useState(imageUri)
+
+    const handleError = () => {
+        setSrc("/images/placeholder.png")
+    }
+
+    console.log("imageUri: ", imageUri)
     return (
         <div>
             {nftAddress ? (
@@ -17,7 +26,9 @@ export default function OffSale_Box({ nftAddress, tokenId, imageUri }) {
                         <Card
                             hoverable
                             style={{ width: "90%", margin: 10 }}
-                            cover={<Image src={imageUri} height="250" width="250" />}
+                            cover={
+                                <Image src={src} onError={handleError} height="250" width="250" />
+                            }
                         >
                             <Meta
                                 title={
@@ -27,7 +38,6 @@ export default function OffSale_Box({ nftAddress, tokenId, imageUri }) {
                                             fontWeight: "bold",
                                             overflow: "hidden",
                                             textOverflow: "ellipsis",
-                                            // whiteSpace: "nowrap",
                                             whiteSpace: "normal",
 
                                             width: "100%",

@@ -84,6 +84,7 @@ export function Header() {
     const handleCloseCreateModal = () => {
         // We close Create Contract modal
         setShowCollectionModal(false)
+        console.log("showCollectionModal: ", showCollectionModal)
     }
 
     //////////////////////////
@@ -189,9 +190,10 @@ export function ProfileHeader() {
         setShowCollectionModal(true)
     }
 
-    const handleCancelCollectionModal = () => {
+    const handleCloseCreateModal = () => {
         // We close Create Contract modal
         setShowCollectionModal(false)
+        console.log("showCollectionModal: ", showCollectionModal)
     }
 
     //////////////////////////
@@ -266,7 +268,7 @@ export function ProfileHeader() {
             </nav>
             <CollectionModal
                 showCollectionModal={showCollectionModal}
-                handleCancelCollectionModal={handleCancelCollectionModal}
+                handleCloseCreateModal={handleCloseCreateModal}
             />
             <SellModal
                 showSellModal={showSellModal}
@@ -286,19 +288,19 @@ const CollectionModal = ({ showCollectionModal, handleCloseCreateModal }) => {
     const [collectionData, setCollectionData] = useState({
         collectionName: null,
         collectionSymbol: null,
-        supply: null,
-        royaltiesPercentage: null,
+        supply: 0,
+        royaltiesPercentage: 0,
         royaltiesReceiver: null,
-        privateView: null,
+        privateView: "false",
     })
-    const [artworkData, setArtworkData] = useState(null)
-    const [ipfsFileUri, setIpfsFileUri] = useState(null)
+    const [artworkData, setArtworkData] = useState({
+        uploadMetadata: [],
+        uploadArtwork: [],
+    })
     const [contractCreated, setContractCreated] = useState(false)
     const [newContractDetails, setNewContractDetails] = useState({})
     const [nftMinted, setNftMinted] = useState(false)
-    const [baseUri, setBaseUri] = useState("")
-
-    const [files, setFiles] = useState([])
+    const [baseUri, setBaseUri] = useState(null)
 
     const { runContractFunction } = useWeb3Contract()
 
@@ -350,16 +352,15 @@ const CollectionModal = ({ showCollectionModal, handleCloseCreateModal }) => {
 
         console.log("tx: ", tx)
         console.log("receipt: ", receipt)
-
         console.log("CONTRACT FACTORY ADDRESS: ", contractFactoryAddress)
 
+        // filter log entries to leave only those where the log.address matches the contractFactory; i.e: only events emitted by contractFactory
         const filteredLogs = receipt.logs.filter((log) => log.address === contractFactoryAddress)
 
-        const newContract = "0x" + filteredLogs[0].data.slice(90)
-        console.log("NEW CONTRACT: ", newContract) // 0x04CBa5e6dE886069567fe7A907D81cB1bC30E0F1
-
-        const creator = "0x" + filteredLogs[0].data.slice(26, 66)
-        console.log("CREATOR: ", creator) // 0xD21bb23e1F754f3a282E5aFf82Ba6f58B7e15D3b
+        // `topics` is an array of bytes32 strings. Each indexed parameter occupies one slot in the array.
+        // `topic[0]` is the hashed signature of the event. `topic[1]` is the first indexed parameter, `topic[2]` is the second indexed parameter
+        const creator = "0x" + filteredLogs[0].topics[1].slice(-40) // use ethers to change to address from 0x00000000000000000000000070bca05c07991398b96207516f3a9d0817eaff51
+        const newContract = "0x" + filteredLogs[0].topics[2].slice(-40)
 
         console.log(`NEW CONTRACT ${newContract} CREATED BY ${creator}!`)
 
@@ -419,11 +420,11 @@ const CollectionModal = ({ showCollectionModal, handleCloseCreateModal }) => {
 
     const isStepDisabled = (stepNumber) => {
         if (stepNumber === 0) {
-            return contractCreated // disabled if contract has been created in step 2
+            return baseUri // disabled if baseUri available
         } else if (stepNumber === 1) {
-            return contractCreated || !collectionData // disabled if contract has been created in step 2 or if collection data is not set in step 0
+            return baseUri // disabled if baseUri available
         } else if (stepNumber === 2) {
-            return !artworkData || !collectionData // disabled if artwork data is not set in step 1 or if collection data is not set in step 0
+            return !baseUri // disabled if IPFS baseUri not available meaning step 1 & 2 are still to be completed
         }
     }
 
@@ -435,15 +436,16 @@ const CollectionModal = ({ showCollectionModal, handleCloseCreateModal }) => {
         <CollectionForm
             setCurrentStep={setCurrentStep}
             setCollectionData={setCollectionData}
-            initialValues={collectionData}
+            initialValues={collectionData} // this tracks users entries if they close modal
         />,
         <ArtworkForm
-            initialValues={artworkData}
             handlePrev={handlePrev}
             setBaseUri={setBaseUri}
             setLoading={setLoading}
             setCurrentStep={setCurrentStep}
             encryptImage={collectionData.privateView}
+            setArtworkData={setArtworkData}
+            initialValues={artworkData} // this tracks users entries if they close modal
         />,
         <FinishAndPayForm
             createContract={createContract}
@@ -451,8 +453,8 @@ const CollectionModal = ({ showCollectionModal, handleCloseCreateModal }) => {
             nftMinted={nftMinted}
             mintNFT={mintNFT}
             newContractDetails={newContractDetails}
+            handleCloseCreateModal={handleCloseCreateModal}
         />,
-        // <MintForm nftMinted={nftMinted} mintNFT={mintNFT} />,
     ]
 
     const stepsItems = [
@@ -466,7 +468,7 @@ const CollectionModal = ({ showCollectionModal, handleCloseCreateModal }) => {
             <Modal
                 title="Create New Collection"
                 open={showCollectionModal}
-                onCancel={contractCreated && !nftMinted ? null : handleCloseCreateModal} // If contract is created but NFT not minted, don't allow user to close modal
+                onCancel={handleCloseCreateModal}
                 footer={null}
             >
                 {loading ? (

@@ -1,6 +1,7 @@
 // import styles from "../styles/Browse.module.css"
 import { useMoralis } from "react-moralis"
 import OffSale_Box from "@/components/OffSale_Box"
+import placeholder from "../../public/images/placeholder.png"
 import { networkMapping } from "@/constants" // when we reference a folder, we will pick up module.exports from our index.js
 import { Row, Col, Typography } from "antd"
 
@@ -10,10 +11,6 @@ export default function NFTList_OffSale({ NFTListData }) {
     const { chainId, isWeb3Enabled, account } = useMoralis()
     const chainString = chainId ? parseInt(chainId).toString() : null
     const marketplaceAddress = chainId ? networkMapping[chainString].NFTMarketplace[0] : null
-
-    // console.log("walletNftsLIST: ", walletNfts)
-    console.log("marketplaceAddress: ", marketplaceAddress)
-    console.log("NFTListData_16: ", NFTListData)
 
     return (
         <div className="container mx-auto">
@@ -34,7 +31,7 @@ export default function NFTList_OffSale({ NFTListData }) {
                                         key={`${nftAddress}${tokenId}`} // unique key required for each element in mapping; we create one here
                                         nftAddress={nftAddress}
                                         tokenId={tokenId}
-                                        imageUri={imageUri}
+                                        imageUri={imageUri || placeholder}
                                     />
                                 </Col>
                             ) : (

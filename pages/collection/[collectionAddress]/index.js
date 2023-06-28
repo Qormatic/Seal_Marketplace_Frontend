@@ -1,6 +1,11 @@
 // This is the template for "NFT Collection Page"
 
-import { GET_ACTIVE_ITEMS, GET_ACTIVE_COLLECTIONS } from "@/constants/subgraphQueries"
+import {
+    GET_ACTIVE_ITEMS,
+    GET_ACTIVE_COLLECTIONS,
+    GET_USER_COLLECTION,
+    GET_ACTIVE_COLLECTION_ITEMS,
+} from "@/constants/subgraphQueries"
 // import Image from "next/image"
 import { ApolloClient, InMemoryCache, gql, useQuery } from "@apollo/client"
 import { NFT_OnSaleFilter, NFT_CollectionFilter } from "@/components/Filter"
@@ -25,6 +30,7 @@ import {
     Col,
     Typography,
     Image,
+    Tooltip,
     Card,
     Modal,
     InputNumber,
@@ -49,7 +55,7 @@ export default function CollectionPage({ NFTListData, collectionData, profileDat
     const [showAuction, setShowAuction] = useState(false)
     const [showFixedPrice, setShowFixedPrice] = useState(false)
     const [isOwner, setIsOwner] = useState(null)
-    const [userAccount, setUserAccount] = useState("")
+    const [src, setSrc] = useState(imageURI)
 
     const { isWeb3Enabled, chainId, account } = useMoralis()
     const { runContractFunction } = useWeb3Contract()
@@ -188,6 +194,14 @@ export default function CollectionPage({ NFTListData, collectionData, profileDat
         }
     }
 
+    //////////////////////////
+    //  Handle Image Error  //
+    //////////////////////////
+
+    const handleError = () => {
+        setSrc("/images/placeholder.png")
+    }
+
     /////////////////////
     //  NFT List Data  //
     /////////////////////
@@ -211,12 +225,7 @@ export default function CollectionPage({ NFTListData, collectionData, profileDat
                 <Content style={{ background: "#f7f7f7" }}>
                     <div align="center" style={{ padding: "10px" }}>
                         <Space>
-                            <Image
-                                src={imageURI || "../../images/placeholder.png"}
-                                alt="Placeholder image"
-                                width={300}
-                                height={300}
-                            />
+                            <Image src={src} onError={handleError} width={300} height={300} />
                         </Space>
                     </div>
                 </Content>
@@ -318,6 +327,7 @@ export default function CollectionPage({ NFTListData, collectionData, profileDat
                 <Footer />
             </Layout>
             <MintModal
+                supply={collectionData.remainingSupply}
                 showMintModal={showMintModal}
                 handleCloseMintModal={handleCloseMintModal}
                 contractAddress={collectionData.address}
@@ -328,8 +338,10 @@ export default function CollectionPage({ NFTListData, collectionData, profileDat
 }
 
 const CollectionInfoCard = ({ isOwner, collectionData, handleOpenMintModal }) => {
+    const allowMint = collectionData.remainingSupply > 0
+
     const MintButtonStyle = {
-        background: collectionData.remainingSupply ? "blue" : "grey",
+        background: allowMint ? "#1677ff" : "grey",
         color: "white",
         // fontSize: "20px",
         display: "flex",
@@ -378,24 +390,40 @@ const CollectionInfoCard = ({ isOwner, collectionData, handleOpenMintModal }) =>
                     </a>
                 </Link>
             </Col>
-            {isOwner ? (
+            {isOwner && collectionData.sealContract ? (
                 <Col span={3}>
                     <div style={{ height: "30px" }}></div>
-                    <Button
-                        style={MintButtonStyle}
-                        disabled={!collectionData.remainingSupply}
-                        shape="round"
-                        onClick={() => handleOpenMintModal()}
-                    >
-                        Mint Tokens
-                    </Button>
+                    {allowMint ? (
+                        <Button
+                            style={MintButtonStyle}
+                            disabled={false}
+                            shape="round"
+                            onClick={() => handleOpenMintModal()}
+                        >
+                            Mint Tokens
+                        </Button>
+                    ) : (
+                        <Tooltip title="There are no NFTs left to mint in this collection">
+                            <span>
+                                <Button style={MintButtonStyle} disabled={true} shape="round">
+                                    Mint Tokens
+                                </Button>
+                            </span>
+                        </Tooltip>
+                    )}
                 </Col>
             ) : null}
         </Row>
     )
 }
 
-const MintModal = ({ showMintModal, handleCloseMintModal, contractAddress, creatorAddress }) => {
+const MintModal = ({
+    supply,
+    showMintModal,
+    handleCloseMintModal,
+    contractAddress,
+    creatorAddress,
+}) => {
     const [mintAmount, setMintAmount] = useState(0)
     const [loading, setLoading] = useState(0)
 
@@ -463,10 +491,23 @@ const MintModal = ({ showMintModal, handleCloseMintModal, contractAddress, creat
                     footer={null}
                 >
                     <Form onFinish={onFinish}>
-                        <Form.Item name="mintAmount" label="Enter Mint Amount" initialValue="0">
+                        <Form.Item
+                            name="mintAmount"
+                            label="Enter Mint Amount"
+                            initialValue="1"
+                            rules={[
+                                {
+                                    required: true,
+                                    type: "number",
+                                    max: supply,
+                                    message:
+                                        "Entered value exceeds the remaining NFTs in this collection.",
+                                },
+                            ]}
+                        >
                             <InputNumber
                                 min={1}
-                                max={200}
+                                max={supply}
                                 value={mintAmount}
                                 onChange={handleNumberChange}
                             />
@@ -496,49 +537,30 @@ const MintModal = ({ showMintModal, handleCloseMintModal, contractAddress, creat
 export async function getServerSideProps({ params }) {
     const { collectionAddress } = params || {}
 
-    //////////////////////////
-    //  Active Items Query  //
-    //////////////////////////
+    /////////////////////
+    //  Apollo Client  //
+    /////////////////////
 
-    const GET_ACTIVE_COLLECTION_ITEMS = gql`
-    {
-        activeFixedPriceItems(
-            first: 100, 
-            where: { buyer: "0x0000000000000000000000000000000000000000",
-            nftAddress: "${collectionAddress}" } # buyer == zeroAddress as this means it is unsold
-        ) {
-            id
-            buyer
-            seller
-            nftAddress
-            tokenId
-            price
-        }
-        activeAuctionItems(
-            first: 100,
-            where: { endTime_gt: ${Math.floor(Date.now() / 1000)},
-            nftAddress: "${collectionAddress}", } # endTime > now
-) {
-            id
-            nftAddress
-            tokenId
-            seller
-            reservePrice
-            startTime
-            endTime
-            buyer
-            highestBid
-            resulted
-            canceled
-        }
-    }
-`
+    // "context" contains the parameters used to create the current route user is on
+    const client = new ApolloClient({
+        cache: new InMemoryCache(),
+        uri: process.env.NEXT_PUBLIC_SUBGRAPH_URL,
+    })
+
+    //////////////////////
+    //  Alchemy Client  //
+    //////////////////////
+
+    const alchemy = new Alchemy({
+        apiKey: process.env.NEXT_PUBLIC_ALCHEMY_API_KEY,
+        network: Network.MATIC_MUMBAI,
+    })
 
     ////////////////////////////////////////////////////
     // Check if contract is MP & has remaining tokens //
     ////////////////////////////////////////////////////
 
-    async function checkMPContract(collectionAddress) {
+    async function checkSealContract(collectionAddress) {
         const provider = new ethers.providers.JsonRpcProvider(process.env.NEXT_PUBLIC_ALCHEMY_URL)
         const contractFactory = new ethers.Contract(
             contractFactoryAddress,
@@ -547,12 +569,14 @@ export async function getServerSideProps({ params }) {
         )
 
         try {
+            // Check for contractAddress in factory contract
             const deployerAddress = await contractFactory.s_deployedContracts(collectionAddress)
 
+            // if deployerAddress returns zero address it's not MP
             if (deployerAddress === "0x0000000000000000000000000000000000000000") {
                 return { contractDeployer: false }
             } else {
-                // Assuming you have the ABI for the collectionAddress contract
+                // Get remaining Supply
                 const collectionContract = new ethers.Contract(
                     collectionAddress,
                     contractAbi,
@@ -562,15 +586,10 @@ export async function getServerSideProps({ params }) {
                 const maxSupply = await collectionContract.s_maxSupply() // total amount allowed to be minted
                 const totalSupply = await collectionContract.totalSupply() // current amount that has been minted
 
-                console.log("maxSupply: ", maxSupply)
-                console.log("totalSupply: ", totalSupply)
-
                 const difference = maxSupply.sub(totalSupply)
-                const remainingSupply = difference.gt(0) // checks if difference is greater than 0
+                let bigNum = ethers.BigNumber.from(difference)
+                let remainingSupply = bigNum.toString()
 
-                console.log("remainingSupply: ", remainingSupply)
-
-                // Return the difference
                 return { contractDeployer: deployerAddress, remainingSupply: remainingSupply }
             }
         } catch (error) {
@@ -578,34 +597,75 @@ export async function getServerSideProps({ params }) {
         }
     }
 
-    console.log("collectionAddress: ", collectionAddress)
-    const mpCheck = await checkMPContract(collectionAddress)
-    console.log("mpCheck: ", mpCheck)
+    const sealCheck = await checkSealContract(collectionAddress)
+    console.log("sealCheck: ", collectionAddress, sealCheck)
 
-    //////////////////////////////
-    //  Collection Information  //
-    //////////////////////////////
+    let collectionData
+    let collection
 
-    const alchemy = new Alchemy({
-        apiKey: process.env.NEXT_PUBLIC_ALCHEMY_API_KEY,
-        network: Network.MATIC_MUMBAI,
-    })
+    // if sealCheck.deployerAddress is not false
+    if (sealCheck.deployerAddress !== false) {
+        ///////////////////////////////////
+        //  Get Seal Collection Details  //
+        ///////////////////////////////////
 
-    const collection = await alchemy.nft.getContractMetadata(collectionAddress, {
-        // excludeFilters: [NftFilters.SPAM],
-    })
+        try {
+            const {
+                data: { contractCreated },
+            } = await client.query({
+                query: GET_USER_COLLECTION,
+                variables: {
+                    id: collectionAddress,
+                },
+            })
+            collection = contractCreated
 
-    console.log("collection: ", collection)
+            console.log(data)
+        } catch (error) {
+            console.error(error)
+        }
 
-    const collectionData = {
-        address: collection.address,
-        name: collection.name,
-        symbol: collection.symbol,
-        tokenType: collection.tokenType,
-        remainingSupply: mpCheck.remainingSupply,
-        contractDeployer:
-            collection.contractDeployer ??
-            (mpCheck.contractDeployer !== false ? mpCheck.contractDeployer : "Unknown"),
+        collectionData = {
+            address: collection.contractAddress,
+            name: collection.name,
+            symbol: collection.symbol,
+            tokenType: collection.tokenType,
+            remainingSupply: sealCheck.remainingSupply,
+            sealContract: true,
+            royaltiesReceiver: collection.royaltiesReceiver,
+            royaltiesPercentage: collection.royaltiesPercentage,
+            private: collection.privateView,
+            createdTimestamp: collection.block.timestamp,
+            contractDeployer:
+                collection.contractDeployer ??
+                (sealCheck.contractDeployer !== false ? sealCheck.contractDeployer : "Unknown"),
+        }
+    } else {
+        ///////////////////////////////////////
+        //  Get External Collection Details  //
+        ///////////////////////////////////////
+
+        try {
+            collection = await alchemy.nft.getContractMetadata(collectionAddress, {
+                // excludeFilters: [NftFilters.SPAM],
+            })
+
+            console.log(data)
+        } catch (error) {
+            console.error(error)
+        }
+
+        collectionData = {
+            address: collection.address,
+            name: collection.name,
+            symbol: collection.symbol,
+            tokenType: collection.tokenType,
+            remainingSupply: 0,
+            sealContract: false,
+            contractDeployer:
+                collection.contractDeployer ??
+                (sealCheck.contractDeployer !== false ? sealCheck.contractDeployer : "Unknown"),
+        }
     }
 
     console.log("collectionData: ", collectionData)
@@ -614,28 +674,39 @@ export async function getServerSideProps({ params }) {
     //  Get On-Sale Items  //
     /////////////////////////
 
-    // "context" contains the parameters used to create the current route user is on
-    const client = new ApolloClient({
-        cache: new InMemoryCache(),
-        uri: process.env.NEXT_PUBLIC_SUBGRAPH_URL,
-    })
+    const currentTime = Math.floor(Date.now() / 1000)
 
-    const { data } = await client.query({
-        query: GET_ACTIVE_COLLECTION_ITEMS,
-    })
+    // let data = { activeFixedPriceItems: [], activeAuctionItems: [] }
 
-    let newData = { ...data } // create new var bcos "data" is not editable
+    let data = { activeFixedPriceItems: [], activeAuctionItems: [] }
 
-    const activeItems = [...data.activeFixedPriceItems, ...data.activeAuctionItems]
+    try {
+        const { data } = await client.query({
+            query: GET_ACTIVE_COLLECTION_ITEMS,
+            variables: {
+                collectionAddress: collectionAddress,
+                currentTime: currentTime,
+            },
+        })
+
+        console.log(data)
+    } catch (error) {
+        console.error(error)
+    }
+
+    // create new var bcos "data" is not editable
+    let newData = { ...data }
+
+    const activeItems = [...newData.activeFixedPriceItems, ...newData.activeAuctionItems]
 
     console.log("activeItems: ", activeItems)
 
-    //////////////////////
+    ///////////////////////
     //  Redirect to 500  //
-    //////////////////////
+    ///////////////////////
 
     // if the collection is not MP and it has no On-Sale items; redirect user to 500 page
-    if (mpCheck.contractDeployer === false && activeItems.length === 0) {
+    if (collectionData.sealContract === false && activeItems.length === 0) {
         return {
             redirect: {
                 destination: "/500",
@@ -648,13 +719,11 @@ export async function getServerSideProps({ params }) {
     //  Get all NFTs for MP contract  //
     ////////////////////////////////////
 
-    if (mpCheck.contractDeployer !== false) {
+    if (collectionData.sealContract !== false) {
         const { ownedNfts } = await alchemy.nft.getNftsForOwner(collectionData.contractDeployer, {
             contractAddresses: [collectionAddress],
             omitMetadata: false,
         })
-
-        // console.log("ownedNfts: ", ownedNfts)
 
         const allNFTs = ownedNfts.map((nft) => {
             return {
@@ -664,8 +733,6 @@ export async function getServerSideProps({ params }) {
                 nftAddress: collectionAddress,
             }
         })
-
-        // console.log("allNFTs: ", allNFTs)
 
         ///////////////////////////////////////
         //  Get inActive Items (Not On-Sale) //

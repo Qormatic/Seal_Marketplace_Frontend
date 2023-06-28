@@ -23,23 +23,23 @@ export default function CollectionList({ userMPCollections }) {
             <Row gutter={[16, 16]}>
                 {isWeb3Enabled && chainId ? (
                     userMPCollections ? (
-                        userMPCollections.map(({ address, name, symbol }) => {
+                        userMPCollections.map(({ contractAddress, name, symbol }) => {
                             return marketplaceAddress ? (
-                                <Col key={address} xs={24} sm={12} md={8} lg={6} xl={5}>
+                                <Col key={contractAddress} xs={24} sm={12} md={8} lg={6} xl={5}>
                                     <Collection_Box
-                                        key={address} // unique key required for each element in mapping; we create one here
-                                        address={address}
+                                        key={contractAddress} // unique key required for each element in mapping; we create one here
+                                        contractAddress={contractAddress}
                                         name={name}
                                         symbol={symbol}
                                     />
                                 </Col>
                             ) : (
-                                <Col key={address} xs={24} sm={12} md={8} lg={6} xl={5}>
+                                <Col key={contractAddress} xs={24} sm={12} md={8} lg={6} xl={5}>
                                     <Tooltip title="Loading metadata for this collection; please reload the page in a few moments">
                                         <Spin>
                                             <Collection_Box
-                                                key={address} // unique key required for each element in mapping; we create one here
-                                                address={address}
+                                                key={contractAddress} // unique key required for each element in mapping; we create one here
+                                                contractAddress={contractAddress}
                                                 name={name}
                                                 symbol={symbol}
                                             />

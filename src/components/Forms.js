@@ -101,7 +101,6 @@ export const CollectionForm = ({ setCurrentStep, setCollectionData, initialValue
                         </Tooltip>
                     </span>
                 }
-                initialValue="The Amazing Collection"
             >
                 <Input />
             </Form.Item>
@@ -120,7 +119,6 @@ export const CollectionForm = ({ setCurrentStep, setCollectionData, initialValue
                         </Tooltip>
                     </span>
                 }
-                initialValue="ACN"
             >
                 <Input style={{ width: "40%" }} />
             </Form.Item>
@@ -142,7 +140,6 @@ export const CollectionForm = ({ setCurrentStep, setCollectionData, initialValue
                         </Tooltip>
                     </span>
                 }
-                initialValue="0"
             >
                 <InputNumber min={1} max={200} />
             </Form.Item>
@@ -150,7 +147,7 @@ export const CollectionForm = ({ setCurrentStep, setCollectionData, initialValue
                 name="royaltiesPercentage"
                 rules={[
                     {
-                        required: true,
+                        required: true, // mandatory in contracts atm
                     },
                 ]}
                 label={
@@ -164,7 +161,6 @@ export const CollectionForm = ({ setCurrentStep, setCollectionData, initialValue
                         </Tooltip>
                     </span>
                 }
-                initialValue="0"
             >
                 <InputNumber min={0} max={20} />
             </Form.Item>
@@ -172,7 +168,7 @@ export const CollectionForm = ({ setCurrentStep, setCollectionData, initialValue
                 name="royaltiesReceiver"
                 rules={[
                     {
-                        required: true,
+                        required: true, // mandatory in contracts atm
                     },
                 ]}
                 label={
@@ -186,7 +182,6 @@ export const CollectionForm = ({ setCurrentStep, setCollectionData, initialValue
                         </Tooltip>
                     </span>
                 }
-                initialValue="0x70bCA05c07991398B96207516f3a9D0817Eaff51"
             >
                 <Input />
             </Form.Item>
@@ -209,7 +204,6 @@ export const CollectionForm = ({ setCurrentStep, setCollectionData, initialValue
                         </Tooltip>
                     </span>
                 }
-                initialValue="True"
             >
                 <Select
                     name="privateView"
@@ -233,60 +227,96 @@ export const CollectionForm = ({ setCurrentStep, setCollectionData, initialValue
 export const ArtworkForm = ({
     setLoading,
     setBaseUri,
-    initialValues,
     handlePrev,
     setCurrentStep,
     encryptImage,
+    setArtworkData,
+    initialValues,
 }) => {
-    ////////////////////////////
-    //  File Remove from List //
-    ////////////////////////////
-
     console.log("encryptImage: ", encryptImage)
 
-    const [fileList, setFileList] = useState([])
+    const [artworkFileList, setArtworkFileList] = useState([])
     const [metadataFileList, setMetadataFileList] = useState([])
+
+    /* 
+       Because of asynchronicity/data availability in React/Next we don't use CSVData nor IpfsImagesUri directly below.
+       Rather we create newCSVData & newIpfsImagesUri to avoid risk of CSVData & IpfsImagesUri not being available in time to continue processing.
+       For now these state variables are redundant but have left them in; in case we use them for something else
+     */
     const [CSVData, setCSVData] = useState({})
     const [IpfsImagesUri, setIpfsImagesUri] = useState([])
 
+    /* 
+    ///////////////
+    //  storage  //
+    ///////////////
+    
+        Our metadataFilelist and artworkFileList are stored in the component's state.
+        State is in memory and will be cleared once the page is refreshed or the component is unmounted. 
+    
+    ////////////////////
+    //  beforeupload  //
+    ////////////////////
+
+        To use antD's Upload component normally you specify an endpoint for a file to be uploaded to
+        This will automatically upload the file to the server and update file.status to reflect progress as "uploading", "done", "error"
+        
+        Although we don't have an endpoint we can use beforeUpload to manually control upload process
+            --> beforeUpload={() => false} prevents automatic upload of the file to the server because we dont have one and returns no status
+            --> Returning false indicates that we will handle the upload manually so the upload process stops & our files will be given no shtatus 
+                by upload component
+            --> Can also perform any checks (e.g. file size, duplicate file name) "beforeUpload"
+        
+        Our custom beforeUpload function sets file shtatus to "uploading" before manually calling the onChange function
+        Then, we return false to stop the automatic upload process
+    */
+
+    const handleArtworkBeforeUpload = (file) => {
+        file.status = "uploading" // set file status manually
+        handleArtworkChange({ file, fileList: [...artworkFileList, file] })
+        return false
+    }
+
+    const handleMetadataBeforeUpload = (file) => {
+        file.status = "uploading" // set file status manually
+        handleMetadataChange({ file, fileList: [...metadataFileList, file] })
+        return false
+    }
+
+    ////////////////////////
+    //  FileList changes  //
+    ////////////////////////
+
+    /* file is the file that triggered onChange
+         fileList is the updated list after onChange */
     const handleArtworkChange = ({ file, fileList }) => {
-        if (file.status !== "uploading") {
-            console.log(file, fileList)
+        console.log("ON_CHANGE_ART: ", file, fileList)
+
+        if (file.status === "uploading") {
+            const doesFileExist = fileList.some(
+                (existingFile) => existingFile.name === file.name && existingFile.uid !== file.uid
+            )
+            if (doesFileExist) {
+                message.error(`File named ${file.name} already exists.`)
+                // filter out the new file with duplicate name
+                const filteredFileList = fileList.filter(
+                    (f) => !(f.name === file.name && f.uid === file.uid)
+                )
+                setArtworkFileList(filteredFileList)
+                return
+            }
         }
-        if (file.status === "done") {
-            message.success(`${file.name} file uploaded successfully`)
-        } else if (file.status === "error") {
-            message.error(`${file.name} file upload failed.`)
-        }
-        setFileList(fileList)
-        console.log("fileList: ", fileList)
+
+        setArtworkFileList(fileList)
+        console.log("Artwork_fileList: ", fileList)
     }
 
     const handleMetadataChange = ({ file, fileList }) => {
-        // for CSV files, as opposed to images, we need to parse the file content into a more usable format (e.g., JSON) in this handler.
-        // Images don't need to be parsed like this because they are used in their raw format (e.g., .jpeg, .png, etc.)
-        // But CSV files are text files that represent tabular data and need to be parsed into a suitable data structure for further processing.
-
-        if (file.status !== "uploading") {
-            console.log(file, fileList)
-        }
-        if (file.status === "done") {
+        if (file.status === "uploading") {
             message.success(`${file.name} file uploaded successfully`)
-
-            const reader = new FileReader()
-            reader.readAsText(file.originFileObj) // Reads the file content as text
-
-            // trigger onload when finished reading
-            reader.onload = (e) => {
-                const data = Papa.parse(reader.result, { header: true }).data // reader.result contains the UNPARSED contents of the file
-                setCSVData(data)
-                console.log("CSVData after set:", data)
-            }
-        } else if (file.status === "error") {
-            message.error(`${file.name} file upload failed.`)
         }
         setMetadataFileList(fileList)
-        console.log("fileList: ", fileList)
+        console.log("Metadata_fileList: ", fileList)
     }
 
     ////////////////////////////
@@ -294,10 +324,12 @@ export const ArtworkForm = ({
     ////////////////////////////
 
     const onArtworkRemove = (file) => {
-        const index = fileList.indexOf(file)
-        const newFileList = fileList.slice()
+        const index = artworkFileList.indexOf(file)
+        const newFileList = artworkFileList.slice()
         newFileList.splice(index, 1)
-        setFileList(newFileList)
+        setArtworkFileList(newFileList)
+
+        console.log("ON_REMOVE_ART: ", file, newFileList)
     }
 
     const onMetadataRemove = (file) => {
@@ -305,6 +337,8 @@ export const ArtworkForm = ({
         const newFileList = metadataFileList.slice()
         newFileList.splice(index, 1)
         setMetadataFileList(newFileList)
+
+        console.log("ON_REMOVE_META: ", file, newFileList)
     }
 
     ///////////////////////
@@ -317,6 +351,8 @@ export const ArtworkForm = ({
         try {
             setLoading(true)
 
+            setArtworkData(values)
+
             // Assuming handleIpfsImageUpload returns a Promise
             const newIpfsImagesUri = await handleIpfsImageUpload(values.uploadArtwork)
 
@@ -325,7 +361,6 @@ export const ArtworkForm = ({
 
             const metadata = await uploadMetadata(newIpfsImagesUri, newCSVData)
 
-            console.log(metadata)
             setLoading(false) // Now that all operations have completed, we stop the loading indicator
         } catch (error) {
             message.error("Upload Error, please try again in a while. You have not been charged.")
@@ -341,14 +376,15 @@ export const ArtworkForm = ({
     const handleIpfsImageUpload = async (artwork) => {
         console.log("images: ", artwork)
         let fileList = artwork.fileList
+        console.log("fileList: ", fileList)
 
+        // create promise for each image
         const filePromises = fileList.map((file) => transformFile(file))
 
+        // wait for all promises to complete
         const transformedFiles = await Promise.all(filePromises)
 
         console.log("transformedFiles: ", transformedFiles)
-        console.log(transformedFiles[0].blob)
-        console.log(transformedFiles[0].fileName)
 
         message.success("Uploading data to the server!")
 
@@ -389,8 +425,6 @@ export const ArtworkForm = ({
             throw err
         }
 
-        console.log("ipfsUris: ", ipfsUris)
-
         setIpfsImagesUri(ipfsUris)
 
         message.success("Images uploaded to IPFS successfully!")
@@ -399,17 +433,35 @@ export const ArtworkForm = ({
     }
 
     const transformFile = (file) => {
-        console.log("encryptImage: ", encryptImage)
+        console.log("file: ", file)
+        console.log("originFileObj: ", file.originFileObj)
 
         return new Promise((resolve, reject) => {
             const reader = new FileReader()
+
+            reader.onloadstart = function (event) {
+                console.log("File reading started")
+            }
+
+            reader.onloadend = function (event) {
+                console.log("File reading finished")
+            }
+
             reader.readAsArrayBuffer(file.originFileObj)
 
             reader.onload = function (event) {
-                if (encryptImage === true) {
+                console.log("File has been read as an ArrayBuffer")
+
+                if (encryptImage === "true") {
+                    console.log("event.target.result: ", event.target.result)
+
+                    console.log("True gate passed")
                     console.log(`Encrypting Image ${file.name}`)
                     const arrayBuffer = event.target.result
+                    console.log("arrayBuffer gate passed: ", arrayBuffer)
+
                     const wordArray = CryptoJS.lib.WordArray.create(new Uint8Array(arrayBuffer))
+                    console.log("wordArray gate passed: ", wordArray)
 
                     const encrypted = CryptoJS.AES.encrypt(
                         wordArray,
@@ -431,23 +483,25 @@ export const ArtworkForm = ({
                     }
 
                     resolve(blobject)
-                } else {
-                    console.log(`Not Encrypting Image ${file.name}`)
-
-                    const blob = new Blob([event.target.result], {
-                        type: file.type,
-                    })
-
-                    const blobject = {
-                        fileName: file.name,
-                        blob: blob,
-                    }
-
-                    resolve(blobject)
                 }
+                // } else {
+                //     console.log(`Not Encrypting Image ${file.name}`)
+
+                //     const blob = new Blob([event.target.result], {
+                //         type: file.type,
+                //     })
+
+                //     const blobject = {
+                //         fileName: file.name,
+                //         blob: blob,
+                //     }
+
+                //     resolve(blobject)
+                // }
             }
 
             reader.onerror = function (error) {
+                console.log("An error occurred while reading the file", error)
                 reject(error)
             }
         })
@@ -463,7 +517,6 @@ export const ArtworkForm = ({
             if (metadataFileList.length > 0) {
                 // Get the first (and only) file from the list
                 const file = metadataFileList[0].originFileObj
-                console.log("file: ", file)
 
                 const reader = new FileReader()
                 reader.readAsText(file)
@@ -472,8 +525,6 @@ export const ArtworkForm = ({
                     const CSVData = e.target.result
                     const jsonData = Papa.parse(CSVData, { header: true }).data // parse file into JSON and store it in state
                     setCSVData(jsonData)
-                    console.log(jsonData) // Display the processed data
-
                     resolve(jsonData) // Resolve the promise with the parsed data
                 }
 
@@ -588,103 +639,95 @@ export const ArtworkForm = ({
                     </span>
                 }
             >
-                {/* To use Upload we must specify an endpoint for a file to be uploaded to. 
-                If we need to perform any checks (e.g. file size) before uploading we can use "beforeUpload" instead of "action" */}
-                <div style={{ display: "flex", flexDirection: "column" }}>
-                    <Upload
-                        multiple={false}
-                        maxCount={1} // maxCount for uploaded files
-                        accept=".csv"
-                        listType="picture"
-                        beforeUpload={() => false} // use beforeUpload as without server we've nowhere to upload - will process files one by one
-                        action="Placeholder" // action is a required prop; it will try and POST to the string and will fail which is fine
-                        fileList={metadataFileList} // list of all uploaded files
-                        onChange={handleMetadataChange} // called any time there is a change in file status
-                        // customRequest={dummyRequest}
-                        showUploadList={false}
-
-                        // style={{ width: "150%" }}
-                    >
-                        <div style={{ width: "155%" }}>
-                            <Button icon={<UploadOutlined />}>Click to Upload</Button>
-                            {metadataFileList.length > 0 && ( // dont display list if no data
-                                <div
-                                    style={{
-                                        maxHeight: "200px",
-                                        overflow: "auto",
-                                        marginTop: "20px",
-                                    }}
-                                >
-                                    <List
-                                        itemLayout="horizontal"
-                                        dataSource={metadataFileList}
-                                        renderItem={(file) => (
-                                            <List.Item
-                                                style={{
-                                                    border: "1px solid",
-                                                    borderColor: "#bfbfbf",
-                                                    borderRadius: "5px",
-                                                    padding: "5px",
-                                                    marginBottom: "5px",
-                                                }}
-                                                actions={[
-                                                    <Button
-                                                        style={{ border: "none" }}
-                                                        onClick={(e) => {
-                                                            e.stopPropagation() // stop onclick from opening file explorer
-                                                            onMetadataRemove(file)
-                                                        }}
-                                                        icon={
-                                                            <DeleteOutlined
-                                                                style={{
-                                                                    color: "#f5222d",
-                                                                    border: "none",
-                                                                }}
-                                                            />
-                                                        }
-                                                    />,
-                                                ]}
-                                            >
-                                                <List.Item.Meta
-                                                    style={{ alignItems: "center" }}
-                                                    avatar={
-                                                        <PaperClipOutlined
+                <Upload
+                    multiple={false}
+                    maxCount={1}
+                    accept=".csv"
+                    listType="picture"
+                    beforeUpload={handleMetadataBeforeUpload}
+                    fileList={metadataFileList} // list of all uploaded files
+                    onChange={handleMetadataChange} // called any time there is a change in file status
+                    showUploadList={false}
+                >
+                    <div style={{ width: "155%" }}>
+                        <Button icon={<UploadOutlined />}>Click to Upload</Button>
+                        {metadataFileList.length > 0 && ( // dont display list if no data
+                            <div
+                                style={{
+                                    maxHeight: "200px",
+                                    overflow: "auto",
+                                    marginTop: "20px",
+                                }}
+                            >
+                                <List
+                                    itemLayout="horizontal"
+                                    dataSource={metadataFileList}
+                                    renderItem={(file) => (
+                                        <List.Item
+                                            style={{
+                                                border: "1px solid",
+                                                borderColor: "#bfbfbf",
+                                                borderRadius: "5px",
+                                                padding: "5px",
+                                                marginBottom: "5px",
+                                            }}
+                                            actions={[
+                                                <Button
+                                                    style={{ border: "none" }}
+                                                    onClick={(e) => {
+                                                        e.stopPropagation() // stop onclick from opening file explorer
+                                                        onMetadataRemove(file)
+                                                    }}
+                                                    icon={
+                                                        <DeleteOutlined
                                                             style={{
-                                                                fontSize: "25px",
-                                                                color: "#1677ff",
+                                                                color: "#f5222d",
+                                                                border: "none",
                                                             }}
                                                         />
                                                     }
-                                                    title={
-                                                        <div
+                                                />,
+                                            ]}
+                                        >
+                                            <List.Item.Meta
+                                                style={{ alignItems: "center" }}
+                                                avatar={
+                                                    <PaperClipOutlined
+                                                        style={{
+                                                            fontSize: "25px",
+                                                            color: "#1677ff",
+                                                        }}
+                                                    />
+                                                }
+                                                title={
+                                                    <div
+                                                        style={{
+                                                            display: "flex",
+                                                            alignItems: "center",
+                                                        }}
+                                                    >
+                                                        <span
                                                             style={{
-                                                                display: "flex",
-                                                                alignItems: "center",
+                                                                fontSize: "14px",
                                                             }}
                                                         >
-                                                            <span
-                                                                style={{
-                                                                    fontSize: "14px",
-                                                                }}
-                                                            >
-                                                                {file.name.length > 15 // prevent overflow
-                                                                    ? `${file.name.substring(
-                                                                          0,
-                                                                          15
-                                                                      )}...`
-                                                                    : file.name}
-                                                            </span>
-                                                        </div>
-                                                    }
-                                                />
-                                            </List.Item>
-                                        )}
-                                    />
-                                </div>
-                            )}
-                        </div>
-                    </Upload>
-                </div>
+                                                            {file.name.length > 15 // prevent overflow
+                                                                ? `${file.name.substring(
+                                                                      0,
+                                                                      15
+                                                                  )}...`
+                                                                : file.name}
+                                                        </span>
+                                                    </div>
+                                                }
+                                            />
+                                        </List.Item>
+                                    )}
+                                />
+                            </div>
+                        )}
+                    </div>
+                </Upload>
             </Form.Item>
             <Form.Item
                 style={{ marginTop: "20px" }}
@@ -703,90 +746,99 @@ export const ArtworkForm = ({
                     </span>
                 }
             >
-                {/* To use Upload we must specify an endpoint for a file to be uploaded to. 
-                If we need to perform any checks (e.g. file size) before uploading we can use "beforeUpload" instead of "action" */}
                 <Upload.Dragger
+                    fileList={null} // using custom fileList below
                     multiple={true}
                     maxCount={200} // maxCount for uploaded files
                     listType="picture"
                     accept=".png, .jpg, .jpeg"
-                    beforeUpload={() => false} // use beforeUpload as without server we've nowhere to upload - will process files one by one
-                    action="Placeholder" // action is a required prop; it will try and POST to the string and will fail which is fine
-                    // customRequest={dummyRequest}
+                    beforeUpload={handleArtworkBeforeUpload}
                     onChange={handleArtworkChange} // called any time there is a change in file status
                     showUploadList={false}
                 >
                     <p className="ant-upload-drag-icon">
                         <InboxOutlined />
                     </p>
-                    <p className="ant-upload-text" class={{ fontSize: "14px" }}>
+                    <p className="ant-upload-text" style={{ fontSize: "14px" }}>
                         Click or drag files to this area to upload
                     </p>
                 </Upload.Dragger>
-                {fileList.length > 0 && ( // dont display list if no data
-                    <div style={{ maxHeight: "250px", overflow: "auto", marginTop: "20px" }}>
-                        <List
-                            itemLayout="horizontal"
-                            dataSource={fileList}
-                            renderItem={(file) => (
-                                <List.Item
-                                    style={{
-                                        border: "1px solid",
-                                        borderColor: "#bfbfbf",
-                                        borderRadius: "5px",
-                                        padding: "5px",
-                                        marginBottom: "5px",
-                                    }} // Rounded grey border
-                                    actions={[
-                                        <Button
-                                            style={{ border: "none" }}
-                                            onClick={() => onArtworkRemove(file)}
-                                            icon={
-                                                <DeleteOutlined
-                                                    style={{ color: "#f5222d", border: "none" }}
-                                                />
-                                            }
-                                        />,
-                                    ]}
-                                >
-                                    <List.Item.Meta
-                                        style={{ alignItems: "center" }}
-                                        avatar={
-                                            <img
-                                                src={URL.createObjectURL(file.originFileObj)}
-                                                style={{ width: "50px" }}
+            </Form.Item>
+            {artworkFileList.length > 0 && ( // dont display list if no data
+                <div
+                    style={{
+                        width: "100%",
+                        maxHeight: "250px",
+                        overflow: "auto",
+                        marginTop: "20px",
+                    }}
+                >
+                    <List
+                        itemLayout="horizontal"
+                        dataSource={artworkFileList}
+                        renderItem={(file) => (
+                            <List.Item
+                                style={{
+                                    border: "1px solid",
+                                    borderColor: "#bfbfbf",
+                                    borderRadius: "5px",
+                                    padding: "5px",
+                                    marginBottom: "5px",
+                                    width: "100%",
+                                }} // Rounded grey border
+                                actions={[
+                                    <Button
+                                        style={{ border: "none" }}
+                                        onClick={() => onArtworkRemove(file)}
+                                        icon={
+                                            <DeleteOutlined
+                                                style={{ color: "#f5222d", border: "none" }}
                                             />
                                         }
-                                        title={
-                                            <div
+                                    />,
+                                ]}
+                            >
+                                <List.Item.Meta
+                                    style={{ alignItems: "center" }}
+                                    avatar={
+                                        <img
+                                            src={
+                                                file.originFileObj
+                                                    ? URL.createObjectURL(file.originFileObj)
+                                                    : ""
+                                            }
+                                            style={{ width: "50px" }}
+                                        />
+                                    }
+                                    title={
+                                        <div
+                                            style={{
+                                                display: "flex",
+                                                alignItems: "center",
+                                                fontSize: "14px",
+                                                whiteSpace: "nowrap", // Prevent text from wrapping onto new lines
+                                                overflow: "hidden", // Prevent text from overflowing container
+                                                textOverflow: "ellipsis", // Add '...' to end of text if it overflows container
+                                                maxWidth: "150px", // Set a maximum width for the text container
+                                            }}
+                                        >
+                                            <span
                                                 style={{
-                                                    display: "flex",
-                                                    alignItems: "center",
                                                     fontSize: "14px",
-                                                    whiteSpace: "nowrap", // Prevent text from wrapping onto new lines
-                                                    overflow: "hidden", // Prevent text from overflowing container
-                                                    textOverflow: "ellipsis", // Add '...' to end of text if it overflows container
-                                                    maxWidth: "150px", // Set a maximum width for the text container
                                                 }}
                                             >
-                                                <span
-                                                    style={{
-                                                        fontSize: "14px",
-                                                    }}
-                                                >
-                                                    {file.name.length > 15 // prevent overflow
-                                                        ? `${file.name.substring(0, 15)}...`
-                                                        : file.name}
-                                                </span>
-                                            </div>
-                                        }
-                                    />
-                                </List.Item>
-                            )}
-                        />
-                    </div>
-                )}
-            </Form.Item>
+                                                {file.name.length > 15 // prevent overflow
+                                                    ? `${file.name.substring(0, 15)}...`
+                                                    : file.name}
+                                            </span>
+                                        </div>
+                                    }
+                                />
+                            </List.Item>
+                        )}
+                    />
+                </div>
+            )}
             <Row justify="center">
                 <Button onClick={handlePrev} style={{ marginRight: 20 }}>
                     Previous
@@ -805,6 +857,7 @@ export const FinishAndPayForm = ({
     mintNFT,
     nftMinted,
     newContractDetails,
+    handleCloseCreateModal,
 }) => {
     // Add this line to store the number input
     const [mintAmount, setMintAmount] = useState(0)
@@ -847,50 +900,12 @@ export const FinishAndPayForm = ({
     ) : (
         <div style={{ textAlign: "center", justifyContent: "center" }}>
             <Title level={4}>Go to your profile to list your NFT for sale</Title>
-            <Link href={`/profile/${newContractDetails.creator}`}>
+            <Link href={`/profile/${newContractDetails.creator}`} onClick={handleCloseCreateModal}>
                 <Button type="primary" style={{ backgroundColor: "#1890ff", margin: "10px" }}>
                     View in Profile
                 </Button>
             </Link>
             <div style={{ fontSize: "30px" }}>🥷</div>
         </div>
-    )
-}
-
-export const MintForm = ({ mintNFT, nftMinted }) => {
-    return !contractCreated ? (
-        <>
-            <div>Press Create Contract to pay fee and create your contract! </div>
-            <div style={{ display: "flex", justifyContent: "center" }}>
-                <Button
-                    type="primary"
-                    htmlType="submit"
-                    onClick={createContract}
-                    style={{ backgroundColor: "#1890ff" }}
-                >
-                    Continue
-                </Button>
-            </div>
-        </>
-    ) : (
-        <>
-            <div>You can now mint an NFT</div>
-            <div style={{ display: "flex", justifyContent: "center" }}>
-                <Button type="primary" disabled={nftMinted} onClick={mintNFT}>
-                    Mint Now
-                </Button>
-            </div>
-            {nftMinted ? (
-                <div>
-                    <div>Go to your profile to list the NFT for sale</div>
-                    <div style={{ display: "flex", justifyContent: "center" }}></div>
-                    <Link href={`/profile/${newContractDetails.creator}`}>
-                        <Button>View in Profile</Button>
-                    </Link>
-                </div>
-            ) : (
-                <div style={{ fontSize: "30px" }}>🥷</div>
-            )}
-        </>
     )
 }

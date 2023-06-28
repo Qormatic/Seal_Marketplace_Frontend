@@ -1,5 +1,4 @@
 import Link from "next/link"
-import placeholder from "../../public/images/placeholder.png"
 import Image from "next/image"
 import { truncateStr, formatUnits } from "@/utils/truncate"
 import { Card, Tooltip } from "antd"
@@ -7,16 +6,18 @@ import { Card, Tooltip } from "antd"
 const { Meta } = Card
 
 // props passed to NFTBox from index.js
-export default function Collection_Box({ name, address, symbol }) {
+export default function Collection_Box({ name, contractAddress, symbol }) {
     return (
         <div>
-            {address ? (
-                <Link href="/collection/[collectionAddress]" as={`/collection/${address}`}>
+            {contractAddress ? (
+                <Link href="/collection/[collectionAddress]" as={`/collection/${contractAddress}`}>
                     <a>
                         <Card
                             hoverable
                             style={{ width: "90%", margin: 10 }}
-                            cover={<Image src={placeholder} height="250" width="250" />}
+                            cover={
+                                <Image src={"/images/placeholder.png"} height="250" width="250" />
+                            }
                         >
                             <Meta
                                 title={
@@ -51,7 +52,7 @@ export default function Collection_Box({ name, address, symbol }) {
                                                 // fontWeight: "bold",
                                             }}
                                         >
-                                            {truncateStr(address, 15)}{" "}
+                                            {truncateStr(contractAddress, 15)}{" "}
                                         </p>
                                     </div>
                                 }
@@ -63,7 +64,7 @@ export default function Collection_Box({ name, address, symbol }) {
                 <a>
                     <Card
                         style={{ width: "90%", margin: 10 }}
-                        cover={<Image src={placeholder} height="250" width="250" />}
+                        cover={<Image src={"/images/placeholder.png"} height="250" width="250" />}
                     >
                         <Meta
                             title={
@@ -78,7 +79,7 @@ export default function Collection_Box({ name, address, symbol }) {
                                         width: "100%",
                                     }}
                                 >
-                                    {truncateStr(address, 15)}
+                                    {truncateStr(contractAddress, 15)}
                                 </div>
                             }
                         />

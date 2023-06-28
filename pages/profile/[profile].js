@@ -69,11 +69,12 @@ export default function Profile({
 
     const { runContractFunction } = useWeb3Contract()
 
+    console.log("userCollections_preContractAddresses: ", userCollections)
+    console.log("userMPCollections_preContractAddresses: ", userMPCollections)
+
     // get all contract addresses for user's MP collections
     // output will be array as [address1, address2, address3] or if has no contracts empty array
-    const contractAddresses = userCollections.contractCreateds.map(
-        (contract) => contract.contractAddress
-    )
+    const contractAddresses = userCollections.map((contract) => contract.contractAddress)
 
     const allOnSaleNfts = [...onSaleNfts.activeFixedPriceItems, ...onSaleNfts.activeAuctionItems] // [{}, {}, {}]
 
@@ -139,63 +140,6 @@ export default function Profile({
                         walletNfts: prevData.walletNfts,
                     }))
                 }
-            } catch (error) {
-                console.error(error)
-            }
-        }
-    }
-
-    // const MAX_RETRIES = 20
-    // const RETRY_INTERVAL = 5000 // 5 seconds
-
-    // const getUserMPCollectionsAll = async () => {
-    //     if (account === profile) {
-    //         const alchemy = new Alchemy({
-    //             apiKey: process.env.NEXT_PUBLIC_ALCHEMY_API_KEY,
-    //             network: Network.MATIC_MUMBAI,
-    //         })
-
-    //         for (let i = 0; i < MAX_RETRIES; i++) {
-    //             try {
-    //                 const allCollectionsData = await alchemy.nft.getContractMetadataBatch(
-    //                     contractAddresses
-    //                 )
-    //                 // Check if every collection object has a 'name' property
-    //                 const allHaveNames = allCollectionsData.every(
-    //                     (collection) => collection.name !== undefined
-    //                 )
-
-    //                 if (allHaveNames) {
-    //                     setUserMPCollections(allCollectionsData)
-    //                     console.log("userMPCollections: ", userMPCollections)
-    //                     break // exit the loop as soon as we get successful data
-    //                 } else {
-    //                     console.log(`Retry ${i + 1}: Not all collections have names yet.`)
-    //                 }
-    //             } catch (error) {
-    //                 console.error(error)
-    //             }
-    //             // wait before trying again
-    //             await new Promise((resolve) => setTimeout(resolve, RETRY_INTERVAL))
-    //         }
-    //     }
-    // }
-
-    const getUserMPCollectionsAll = async () => {
-        if (account === profile) {
-            const alchemy = new Alchemy({
-                apiKey: process.env.NEXT_PUBLIC_ALCHEMY_API_KEY,
-                network: Network.MATIC_MUMBAI,
-            })
-
-            try {
-                const allCollectionsData = await alchemy.nft.getContractMetadataBatch(
-                    contractAddresses
-                )
-
-                setUserMPCollections(allCollectionsData)
-
-                console.log("userMPCollections: ", userMPCollections)
             } catch (error) {
                 console.error(error)
             }
@@ -431,7 +375,7 @@ export default function Profile({
     useEffect(() => {
         if (account) {
             getUserNFTsAll()
-            getUserMPCollectionsAll()
+            setUserMPCollections(userCollections)
         }
     }, [account])
 
@@ -779,6 +723,15 @@ export async function getServerSideProps({ params }) {
         id
         contractAddress
         owner
+        tokenType
+        symbol
+        royaltiesReceiver
+        royaltiesPercentage
+        privateView
+        name
+        block {
+      timestamp
+    }
     }
     }`
 
@@ -786,9 +739,12 @@ export async function getServerSideProps({ params }) {
         query: GET_USER_COLLECTIONS,
     })
 
-    // console.log("collections: ", collections)
+    const unsortedCollections = collections.data
 
-    const userCollections = collections.data
+    // ...unsortedCollections; create copy cos unsortedCollections is read only
+    const userCollections = [...unsortedCollections.contractCreateds].sort(
+        (a, b) => b.block.timestamp - a.block.timestamp
+    )
 
     console.log("userCollections: ", userCollections)
 

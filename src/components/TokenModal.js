@@ -28,7 +28,6 @@ export default function TokenModal({ data, collectionName, showModal, setShowMod
     const [loading, setLoading] = useState(false)
     const [newBid, setNewBid] = useState("")
     const [offer, setOffer] = useState("")
-
     const { runContractFunction } = useWeb3Contract()
 
     const chainString = chainId ? parseInt(chainId).toString() : null

@@ -266,3 +266,56 @@ export const GET_TOKEN_HISTORY = gql`
         }
     }
 `
+export const GET_USER_COLLECTION = gql`
+    query GetCollection($id: ID!) {
+        contractCreated(id: $id) {
+            id
+            contractAddress
+            owner
+            tokenType
+            symbol
+            royaltiesReceiver
+            royaltiesPercentage
+            privateView
+            name
+            block {
+                timestamp
+            }
+        }
+    }
+`
+
+export const GET_ACTIVE_COLLECTION_ITEMS = gql`
+    query GetActiveCollectionItems($collectionAddress: String!, $currentTime: Int!) {
+        activeFixedPriceItems(
+            first: 100
+            where: {
+                buyer: "0x0000000000000000000000000000000000000000"
+                nftAddress: $collectionAddress
+            }
+        ) {
+            id
+            buyer
+            seller
+            nftAddress
+            tokenId
+            price
+        }
+        activeAuctionItems(
+            first: 100
+            where: { endTime_gt: $currentTime, nftAddress: $collectionAddress }
+        ) {
+            id
+            nftAddress
+            tokenId
+            seller
+            reservePrice
+            startTime
+            endTime
+            buyer
+            highestBid
+            resulted
+            canceled
+        }
+    }
+`
