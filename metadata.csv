@@ -1,21 +1,21 @@
-Image_Name,Date_Created,Photographer,Location,Camera,Event
-1.png,2023-01-01,John Doe,New York,Nikon D850,Times Square New Year's Celebration
-2.png,2023-01-02,John Doe,New York,Nikon D850,Broadway Show
-3.png,2023-01-03,John Doe,Los Angeles,Canon EOS 5D Mark IV,Hollywood Movie Premiere
-4.png,2023-01-04,John Doe,Los Angeles,Canon EOS 5D Mark IV,L.A. Lakers Basketball Game
-5.png,2023-01-05,John Doe,Miami,Sony A7R IV,Miami Beach Party
-6.png,2023-01-06,John Doe,Miami,Sony A7R IV,Art Basel
-7.png,2023-01-07,John Doe,San Francisco,FujiFilm GFX 100,Golden Gate Bridge Marathon
-8.png,2023-01-08,John Doe,San Francisco,FujiFilm GFX 100,Tech Conference
-9.png,2023-01-09,John Doe,Chicago,Nikon Z7 II,Chicago Bulls Basketball Game
-10.png,2023-01-10,John Doe,Chicago,Nikon Z7 II,Chicago Jazz Festival
-11.png,2023-01-11,John Doe,Seattle,Canon EOS R5,Seattle Seafood Festival
-12.png,2023-01-12,John Doe,Seattle,Canon EOS R5,Seattle Art Fair
-13.png,2023-01-13,John Doe,Boston,Leica Q2,Boston Tea Party Reenactment
-14.png,2023-01-14,John Doe,Boston,Leica Q2,Boston Marathon
-15.png,2023-01-15,John Doe,Washington DC,Panasonic Lumix S1R,White House Press Conference
-16.png,2023-01-16,John Doe,Washington DC,Panasonic Lumix S1R,Cherry Blossom Festival
-17.png,2023-01-17,John Doe,Houston,Hasselblad X1D II 50C,Houston Rodeo
-18.png,2023-01-18,John Doe,Houston,Hasselblad X1D II 50C,NASA Space Center Tour
-19.png,2023-01-19,John Doe,Dallas,Olympus OM-D E-M1X,Dallas Cowboys Football Game
-20.png,2023-01-20,John Doe,Dallas,Olympus OM-D E-M1X,Texas State Fair
+name,filename,Date_Created,Photographer,Location,Camera,Event,Description,
+001,1.png,2023-01-01,John Doe,New York,Nikon D850,The Renaissance Revisited,Explore the masterpieces of the Renaissance period in this breathtaking virtual gallery.
+002,2.png,2023-01-02,John Doe,New York,Nikon D850,Symphony Under the Stars,An open-air orchestral performance featuring timeless classics perfect for a romantic summer night.
+003,3.png,2023-01-03,John Doe,Los Angeles,Canon EOS 5D Mark IV,Street Art Spectacular,A vibrant exhibition showcasing the most talented graffiti artists from around the globe.
+004,4.png,2023-01-04,John Doe,Los Angeles,Canon EOS 5D Mark IV,Jazz & Wine Festival,Enjoy a selection of fine wines and spirited jazz performances at this annual event.
+005,5.png,2023-01-05,John Doe,Miami,Sony A7R IV,Broadway Behind the Scenes,A special interactive tour giving an intimate look at the making of Broadway's biggest hits.
+006,6.png,2023-01-06,John Doe,Miami,Sony A7R IV,Cinema in the Park,A community event featuring classic movies under the open sky complete with popcorn and soft drinks.
+007,7.png,2023-01-07,John Doe,San Francisco,FujiFilm GFX 100,Modern Dance Marathon,A day-long event celebrating contemporary dance with performances from the world's leading troupes.
+008,8.png,2023-01-08,John Doe,San Francisco,FujiFilm GFX 100,The Magic of Animation,A workshop for kids and adults alike to learn about the process of creating animated films.
+009,9.png,2023-01-09,John Doe,Chicago,Nikon Z7 II,Craft Beer & Indie Music Fest,A unique event featuring independent brewers and musicians promoting local culture and community spirit.
+010,10.png,2023-01-10,John Doe,Chicago,Nikon Z7 II,Classical Music Gala,Experience the beauty of classical music with performances from renowned soloists and orchestras.
+011,11.png,2023-01-11,John Doe,Seattle,Canon EOS R5,Vintage Poster Exhibition,A unique exhibition showcasing rare and vintage movie posters from the golden age of cinema.
+012,12.png,2023-01-12,John Doe,Seattle,Canon EOS R5,Outdoor Sculpture Trail,A self-guided tour of breathtaking outdoor sculptures set in a beautiful natural landscape.
+013,13.png,2023-01-13,John Doe,Boston,Leica Q2,Art of Photography,A seminar by leading photographers sharing their techniques inspirations and experiences.
+014,14.png,2023-01-14,John Doe,Boston,Leica Q2,Poetry Slam Night,An exciting event where poets perform their work and compete against each other.
+015,15.png,2023-01-15,John Doe,Washington DC,Panasonic Lumix S1R,Theatre Improv Workshop,Learn the art of improvisation in this interactive and fun-filled workshop.
+016,16.png,2023-01-16,John Doe,Washington DC,Panasonic Lumix S1R,Latin Dance Fiesta,A vibrant event celebrating Latin culture with dance performances and workshops.
+017,17.png,2023-01-17,John Doe,Houston,Hasselblad X1D II 50C,Vintage Vinyl Fair,A must-visit for music lovers offering a wide range of vintage vinyl records.
+018,18.png,2023-01-18,John Doe,Houston,Hasselblad X1D II 50C,Silent Film Festival,A celebration of the silent film era showcasing classics with live musical accompaniment.
+019,19.png,2023-01-19,John Doe,Dallas,Olympus OM-D E-M1X,Rock Band Battle,An electrifying event where local rock bands compete against each other for the title of the best band.
+020,20.png,2023-01-20,John Doe,Dallas,Olympus OM-D E-M1X,Culinary Art Show,A unique event where top chefs display their culinary skills and create edible masterpieces.

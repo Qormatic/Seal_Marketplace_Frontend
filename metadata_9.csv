@@ -1,10 +1,10 @@
-name,filename,Date_Created,Photographer,Location,Camera,Event
-Picture 1,1.png,2023-01-01,John Doe,New York,Nikon D850,Times Square New Year's Celebration
-Picture 2,2.png,2023-01-02,John Doe,New York,Nikon D850,Broadway Show
-Picture 3,3.png,2023-01-03,John Doe,Los Angeles,Canon EOS 5D Mark IV,Hollywood Movie Premiere
-Picture 4,4.png,2023-01-04,John Doe,Los Angeles,Canon EOS 5D Mark IV,L.A. Lakers Basketball Game
-Picture 5,5.png,2023-01-05,John Doe,Miami,Sony A7R IV,Miami Beach Party
-Picture 6,6.png,2023-01-06,John Doe,Miami,Sony A7R IV,Art Basel
-Picture 7,7.png,2023-01-07,John Doe,San Francisco,FujiFilm GFX 100,Golden Gate Bridge Marathon
-Picture 8,8.png,2023-01-08,John Doe,San Francisco,FujiFilm GFX 100,Tech Conference
-Picture 9,9.png,2023-01-09,John Doe,Chicago,Nikon Z7 II,Chicago Bulls Basketball Game
+name,filename,Date_Created,Photographer,Location,Camera,Event,Description
+001,1.png,2023-01-01,John Doe,New York,Nikon D850,The Renaissance Revisited,Explore the masterpieces of the Renaissance period in this breathtaking virtual gallery.
+002,2.png,2023-01-02,John Doe,New York,Nikon D850,Symphony Under the Stars,An open-air orchestral performance featuring timeless classics perfect for a romantic summer night.
+003,3.png,2023-01-03,John Doe,Los Angeles,Canon EOS 5D Mark IV,Street Art Spectacular,A vibrant exhibition showcasing the most talented graffiti artists from around the globe.
+004,4.png,2023-01-04,John Doe,Los Angeles,Canon EOS 5D Mark IV,Jazz & Wine Festival,Enjoy a selection of fine wines and spirited jazz performances at this annual event.
+005,5.png,2023-01-05,John Doe,Miami,Sony A7R IV,Broadway Behind the Scenes,A special interactive tour giving an intimate look at the making of Broadway's biggest hits.
+006,6.png,2023-01-06,John Doe,Miami,Sony A7R IV,Cinema in the Park,A community event featuring classic movies under the open sky complete with popcorn and soft drinks.
+007,7.png,2023-01-07,John Doe,San Francisco,FujiFilm GFX 100,Modern Dance Marathon,A day-long event celebrating contemporary dance with performances from the world's leading troupes.
+008,8.png,2023-01-08,John Doe,San Francisco,FujiFilm GFX 100,The Magic of Animation,A workshop for kids and adults alike to learn about the process of creating animated films.
+009,9.png,2023-01-09,John Doe,Chicago,Nikon Z7 II,Craft Beer & Indie Music Fest,A unique event featuring independent brewers and musicians promoting local culture and community spirit.

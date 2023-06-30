@@ -1,23 +1,14 @@
-// This is the template for "Individual NFT Page"
-
 import {
     GET_TOKEN_HISTORY,
     GET_ACTIVE_ITEMS,
-    GET_TOKEN_ACTIVE_ITEMS,
+    TOKEN_ON_SALE_RECORD,
 } from "@/constants/subgraphQueries"
 import { ApolloClient, InMemoryCache, gql, useQuery } from "@apollo/client"
 // import client from "../_app"
 import { useWeb3Contract, useMoralis } from "react-moralis"
-import { useNotification } from "web3uikit"
-import nftAbi from "@/constants/BasicNft.json"
-import nftAuctionAbi from "@/constants/Seal_NFTAuction.json"
-import { networkMapping } from "@/constants"
 import styles from "@/styles/components.module.css"
-import { avatars } from "@/constants/fluff"
-import { ethers } from "ethers"
 import Link from "next/link"
 import Image from "next/image"
-import TokenModal from "@/components/TokenModal"
 import { useEffect, useState } from "react"
 import { NftFilters, Alchemy, Network, Utils } from "alchemy-sdk"
 import {
@@ -35,24 +26,39 @@ import {
     Statistic,
     notification,
 } from "antd"
+
+import { ethers } from "ethers"
+import { FixedPriceDisplay, OfferDisplay, AuctionDisplay } from "@/components/SaleCards"
+import TokenModal from "@/components/TokenModal"
+import { networkMapping } from "@/constants"
+import nftAuctionAbi from "@/constants/Seal_NFTAuction.json"
+import contractAbi from "@/constants/Seal_721_Contract.json"
+import contractFactoryAbi from "@/constants/Seal_ContractFactory.json"
+import { avatars } from "@/constants/fluff"
+import nftAbi from "@/constants/BasicNft.json"
 import { truncateStr, formatUnits } from "@/utils/truncate"
+import { getTokenProvenance } from "@/utils/formatEvents"
+import { getDecryptedImage } from "@/utils/decryptImage"
+
+const AVATAR_URL = avatars[Math.floor(Math.random() * avatars.length)]
+
+const mumbaiChain = "80001"
+
+const contractFactoryAddress = mumbaiChain ? networkMapping[mumbaiChain].ContractFactory[0] : null
 
 const { Header, Content, Footer } = Layout
 const { Title, Text } = Typography
 const { Countdown } = Statistic
 
-export default function NFTPage({ data, tokenProvenance }) {
-    const { isWeb3Enabled, account } = useMoralis()
-    const [imageURI, setImageURI] = useState("")
-    const [tokenName, setTokenName] = useState("")
-    const [tokenDescription, setTokenDescription] = useState("")
-    const [collectionName, setCollectionName] = useState("")
+export default function NFTPage({ data, tokenProvenance, tokenData }) {
+    // const [imageUri, setImageUri] = useState("")
     const [attributes, setAttributes] = useState([])
     const [showModal, setShowModal] = useState(false)
-    const [src, setSrc] = useState(imageURI)
+    const [src, setSrc] = useState(tokenData.image)
     const [loading, setLoading] = useState(false)
     const [auctionFinished, setAuctionFinished] = useState(false)
     const {
+        __typename,
         id,
         nftAddress,
         tokenId,
@@ -63,18 +69,18 @@ export default function NFTPage({ data, tokenProvenance }) {
         highestBid,
         resulted,
         canceled,
-        seller,
         buyer, // highestBidder while auction open, winningBidder if auction closed, 0x0 if no bids
+        seller,
         minter,
-        __typename,
     } = data
+
+    const { name, collectionName, description } = tokenData
+    const { isWeb3Enabled, account } = useMoralis()
 
     const userIsHighbidder = buyer === account
     const owner = seller ?? minter
     const userIsSeller = owner === account || owner === undefined
     const formattedSellerAddress = userIsSeller ? "You" : truncateStr(owner || "", 15)
-
-    const AVATAR_URL = avatars[Math.floor(Math.random() * avatars.length)]
 
     const { runContractFunction } = useWeb3Contract()
 
@@ -88,51 +94,36 @@ export default function NFTPage({ data, tokenProvenance }) {
     //  Set up UI  //
     /////////////////
 
-    async function updateUI() {
-        const tokenURI = await getTokenURI()
-        const collectionName = await getName()
+    async function checkImage() {
+        const {
+            image: imageUri,
+            sealContract: { sealContract, privateView },
+        } = tokenData
 
-        console.log("tokenURI: ", tokenURI)
-
-        /* 
-            We cheat a little here on decentralization by using an IPFS Gateway instead of IPFS directly because not all browsers are IPFS compatible
-            Rather than risk our FE showing blank images on some browsers, we update tokenURIs where "IPFS://" is detected to "HTTPS://"
-            The gateway "https://ipfs.io/ipfs/" is provided by the IPFS team
-            The other solution would be to store the image on a server (like Moralis) and call from there
-        */
-        if (tokenURI) {
-            const requestURL = tokenURI.replace("ipfs://", "https://ipfs.io/ipfs/")
-            console.log("requestURL: ", requestURL)
-            const { image, name, description, attributes } = await (await fetch(requestURL)).json()
-            console.log("image", image)
-            console.log("name", name)
-            console.log("description", description)
-            console.log("attributes", attributes)
-            setImageURI(image.replace("ipfs://", "https://ipfs.io/ipfs/"))
-            setTokenName(name)
-            setTokenDescription(description)
-            setCollectionName(collectionName)
-            setAttributes(attributes)
+        // If sealContract and private are both true and the account is the owner, decrypt the image
+        if (sealContract && privateView && userIsSeller) {
+            const decryptedImage = await getDecryptedImage(imageUri)
+            setSrc(decryptedImage)
+        }
+        // If sealContract and private are not both true, or the account is not the owner, set the imageUri as is
+        else {
+            setSrc(imageUri)
         }
     }
 
-    // define the getTokenURI function call we need to interact with the NFT's contract
-    const { runContractFunction: getTokenURI } = useWeb3Contract({
-        abi: nftAbi,
-        contractAddress: nftAddress,
-        functionName: "tokenURI",
-        params: {
-            tokenId: tokenId,
-        },
-    })
-
-    // define the getTokenURI function call we need to interact with the NFT's contract
-    const { runContractFunction: getName } = useWeb3Contract({
-        abi: nftAbi,
-        contractAddress: nftAddress,
-        functionName: "name",
-        params: {},
-    })
+    // tokenData:  {
+    //     name: 'Picture 3',
+    //     filename: '3.png',
+    //     Date_Created: '2023-01-03',
+    //     Photographer: 'John Doe',
+    //     Location: 'Los Angeles',
+    //     Camera: 'Canon EOS 5D Mark IV',
+    //     Event: 'Hollywood Movie Premiere',
+    //     image: 'https://ipfs.io/ipfs/QmXde2Sf7tauR9RBGRWrjMLc2ZjMvQLgWPszB53tvbLs1D/3.png',
+    //     collectionName: 'ENCRYPTED 2',
+    //     sealContract: { sealContract: true, private: true },
+    // description: "blah blah balh"
+    //   }
 
     /////////////////////////
     //  getAuctionEndTime  //
@@ -232,60 +223,6 @@ export default function NFTPage({ data, tokenProvenance }) {
         window.location.reload()
     }
 
-    //////////////////////
-    //  Provenance List //
-    //////////////////////
-
-    function renderItem(item) {
-        return (
-            <List.Item>
-                <List.Item.Meta
-                    avatar={<Avatar src={AVATAR_URL} size="large" />}
-                    title={createTitle(item)}
-                    description={item.timestamp}
-                />
-            </List.Item>
-        )
-    }
-
-    // title function is run by renderItem
-    function createTitle(item) {
-        console.log(item)
-        const user = truncateStr(item.HighestBidder || item.owner || item.buyer || "", 15)
-        const realUser = truncateStr(account, 15) === user ? "You" : user
-        const amount =
-            item.HighestBid === null ||
-            item.reservePrice === null ||
-            item.price === null ||
-            item.__typename === "Token Minted"
-                ? null
-                : item.HighestBid || item.reservePrice || item.price || "00000"
-
-        // console.log("amount1: ", amount)
-        // console.log("item: ", item)
-
-        return (
-            <div style={{ display: "flex", justifyContent: "space-between" }}>
-                <span style={{ fontSize: "16px" }}>
-                    {item.__typename} by <span style={{ fontWeight: "bold" }}>{realUser}</span>{" "}
-                </span>
-                <span
-                    style={{
-                        fontSize: "20px",
-                        fontWeight: "bold",
-                        // display: "inline-block",
-                        // marginRight: "50px !important",
-                        // width: "100%",
-                        // marginLeft: "100px",
-                        // paddingRight: "100px",
-                    }}
-                >
-                    {formatUnits(amount)}
-                </span>
-            </div>
-        )
-    }
-
     //////////////////////////
     //  Handle Image Error  //
     //////////////////////////
@@ -294,90 +231,15 @@ export default function NFTPage({ data, tokenProvenance }) {
         setSrc("/images/placeholder.png")
     }
 
-    /////////////////////
-    //  Decrypt Image  //
-    /////////////////////
-
-    async function decryptImage(imageURI) {
-        console.log("imageURI to decrypt: ", imageURI)
-        const response = await fetch(imageURI)
-        console.log("response: ", response)
-
-        const jsonData = await response.json()
-        console.log("jsonData: ", jsonData)
-
-        const encryptedString = jsonData.encryptedData
-        console.log("encryptedString: ", encryptedString)
-
-        // Decrypt the image data which returns a Wordarray
-        const decryptedData = CryptoJS.AES.decrypt(
-            encryptedString,
-            process.env.NEXT_PUBLIC_CRYPTO_SECRET_KEY
-        )
-        console.log("decryptedData: ", decryptedData)
-
-        // Convert decrypted data back to ArrayBuffer from WordArray
-        let wordArray = decryptedData
-        let byteArray = wordArrayToByteArray(wordArray, wordArray.sigBytes)
-        // Uint8Array is a type of array specifically designed to hold bytes
-        let arrayBuffer = new Uint8Array(byteArray).buffer
-
-        // Convert to blob
-        const decryptedBlob = new Blob([arrayBuffer], {
-            type: jsonData.fileType, // or whatever the original file type was
-        })
-        // Convert to object URL which can be displayed in the front end
-        const imageUrl = URL.createObjectURL(decryptedBlob)
-
-        // Return the decrypted image URL
-        console.log("decrypted imageURl: ", imageUrl)
-        return imageUrl
-    }
-
-    // Convert WordArray back into a byteArray
-    function wordArrayToByteArray(wordArray, numSigBytes) {
-        let byteArray = [], // initialise empty array
-            word,
-            i,
-            j
-
-        /*  
-            Loop over each word in WordArray where each word is a 32-bit number
-            nested loop iterates over the 4 bytes in the current word
-            extract each byte from the word and pushes it into the byteArray
-        */
-        for (i = 0; i < numSigBytes / 4; i++) {
-            word = wordArray.words[i]
-            for (j = 3; j >= 0; j--) {
-                byteArray.push((word >> (8 * j)) & 0xff)
-            }
-        }
-        return byteArray
-    }
-
     //////////////////
     //  useEffects  //
     //////////////////
 
     useEffect(() => {
         if (isWeb3Enabled) {
-            updateUI()
+            checkImage()
         }
     }, [isWeb3Enabled])
-
-    useEffect(() => {
-        if (account === owner && imageURI) {
-            decryptImage(imageURI)
-                .then((decryptedImageURI) => {
-                    setSrc(decryptedImageURI)
-                })
-                .catch(() => {
-                    handleError()
-                })
-        } else if (imageURI) {
-            setSrc(imageURI)
-        }
-    }, [account, imageURI])
 
     return (
         <div>
@@ -386,9 +248,9 @@ export default function NFTPage({ data, tokenProvenance }) {
                 showModal={showModal}
                 setShowModal={setShowModal}
                 collectionName={collectionName}
-                imageURI={imageURI}
+                imageUri={src}
             />
-            {data && imageURI ? (
+            {data && src ? (
                 <Layout>
                     <Content style={{ background: "#f7f7f7" }}>
                         <div align="center" style={{ padding: "50px" }}>
@@ -403,7 +265,7 @@ export default function NFTPage({ data, tokenProvenance }) {
                                 <Col span={12}>
                                     <Overview
                                         tokenId={tokenId}
-                                        tokenName={tokenName}
+                                        tokenName={name}
                                         collectionName={collectionName}
                                         seller={owner}
                                         nftAddress={nftAddress}
@@ -446,10 +308,10 @@ export default function NFTPage({ data, tokenProvenance }) {
                             <Row gutter={[30, 30]}>
                                 <Description
                                     nftAddress={nftAddress}
+                                    account={account}
                                     attributes={attributes}
-                                    renderItem={renderItem}
                                     tokenProvenance={tokenProvenance}
-                                    tokenDescription={tokenDescription}
+                                    tokenDescription={description}
                                 />
                             </Row>
                         </div>
@@ -505,23 +367,6 @@ const Overview = ({
     )
 }
 
-// rendered differently depending on if it comes from fixedPriceDisplay or auctionDisplay
-const SaleCardButton = ({ handleButtonClick, title, disableButton }) => {
-    return (
-        <Button
-            block
-            disabled={disableButton}
-            type="primary"
-            size="large"
-            shape="round"
-            className={`${styles["sale-card-button"]} ${disableButton ? styles.disabled : ""}`}
-            onClick={() => handleButtonClick(title)}
-        >
-            {title}
-        </Button>
-    )
-}
-
 const OwnerDetails = ({ formattedSellerAddress, seller }) => {
     return (
         <Row style={{ marginTop: "10px" }}>
@@ -541,206 +386,54 @@ const OwnerDetails = ({ formattedSellerAddress, seller }) => {
     )
 }
 
-const FixedPriceDisplay = ({ handleButtonClick, userIsSeller, price }) => {
-    return (
-        <>
-            <Title type="secondary" level={4}>
-                Fixed Price
-            </Title>
-            <Title level={3} style={{ margin: 0 }} type="primary">
-                Price {price} ETH
-            </Title>
-            <SaleCardButton
-                title={"Buy Now"}
-                disableButton={userIsSeller}
-                handleButtonClick={handleButtonClick}
-            />
-        </>
-    )
-}
+const Description = ({ attributes, tokenProvenance, tokenDescription, account, nftAddress }) => {
+    //////////////////////
+    //  Provenance List //
+    //////////////////////
 
-const OfferDisplay = ({ handleButtonClick, userIsSeller }) => {
-    return (
-        <>
-            <Title type="secondary" level={4}>
-                Make Offer
-            </Title>
-            <Title level={3} style={{ margin: 0 }} type="primary">
-                Not Currently On Sale
-            </Title>
-            <SaleCardButton
-                title={"Make Offer"}
-                disableButton={userIsSeller}
-                handleButtonClick={handleButtonClick}
-            />
-        </>
-    )
-}
+    function renderItem(item) {
+        return (
+            <List.Item>
+                <List.Item.Meta
+                    avatar={<Avatar src={AVATAR_URL} size="large" />}
+                    title={createTitle(item)}
+                    description={item.timestamp}
+                />
+            </List.Item>
+        )
+    }
 
-const AuctionDisplay = ({
-    buyer,
-    endTime,
-    onFinish,
-    highestBid,
-    reservePrice,
-    userIsSeller,
-    userIsHighbidder,
-    handleButtonClick,
-}) => {
-    console.log("userIsSeller: ", userIsSeller)
-    console.log("userIsHighbidder: ", userIsHighbidder)
+    // title function is run by renderItem
+    function createTitle(item) {
+        const itemUser = item.HighestBidder || item.owner || item.buyer || item.minter
+        const isCurrentUser = account === itemUser
+        const displayUser = isCurrentUser ? "You" : truncateStr(itemUser, 15)
 
-    return (
-        <>
-            {endTime < Date.now() / 1000 ? ( // display if endTime in past and auction not resulted or canceled
-                <div>
-                    <Row style={{ height: "100%" }}>
-                        <Col span={11}>
-                            <Title type="secondary" level={4}>
-                                Auction
-                            </Title>
-                            <Title level={4} style={{ margin: 0 }} type="primary">
-                                {highestBid ? `Winning Bid ${highestBid} ETH` : "No Winning Bid"}
-                            </Title>
-                            <div
-                                style={{
-                                    display: "flex",
-                                    alignItems: "center",
-                                    marginTop: "10px",
-                                }}
-                            >
-                                <Title type="secondary" level={4} style={{ marginTop: "5px" }}>
-                                    {highestBid ? "Winner" : "No Winner"}
-                                </Title>
-                                {highestBid !== 0 && highestBid && (
-                                    <Link href="/profile/[profile]" as={`/profile/${buyer}`}>
-                                        <a>
-                                            <Button
-                                                style={{ marginLeft: "10px", marginTop: 0 }}
-                                                shape="round"
-                                            >
-                                                {truncateStr(buyer ?? "", 15)}
-                                            </Button>
-                                        </a>
-                                    </Link>
-                                )}
-                            </div>
-                        </Col>
-                        <Col span={2}>
-                            <Divider
-                                type="vertical"
-                                style={{
-                                    marginTop: "0 10px",
-                                    height: "100%",
-                                    width: "10px",
-                                }}
-                            />
-                        </Col>
-                        <Col span={11}>
-                            <Title type="secondary" level={4}>
-                                Time Remaining
-                            </Title>
-                            <Countdown
-                                format={`DD:HH:mm:ss`} //format={""} format will show value at same time as prefix unless we comment out
-                                value={endTime * 1000}
-                                onFinish={() => onFinish()}
-                            />
-                        </Col>
-                    </Row>
+        const amount =
+            item.HighestBid === null ||
+            item.reservePrice === null ||
+            item.price === null ||
+            item.__typename === "Token Minted"
+                ? null
+                : item.HighestBid || item.reservePrice || item.price || "00000"
 
-                    <SaleCardButton
-                        title={
-                            userIsSeller
-                                ? highestBid
-                                    ? "Result Auction"
-                                    : "Cancel Auction"
-                                : "Auction Ended"
-                        }
-                        buyer={buyer}
-                        disableButton={!userIsSeller}
-                        handleButtonClick={handleButtonClick}
-                    />
-                </div>
-            ) : (
-                <div>
-                    <Row style={{ height: "100%" }}>
-                        <Col span={11}>
-                            <Title type="secondary" level={4}>
-                                Auction
-                            </Title>
-                            <Title level={3} style={{ margin: 0 }} type="primary">
-                                {highestBid
-                                    ? `Current Bid ${highestBid} ETH`
-                                    : `Reserve ${reservePrice} ETH`}
-                            </Title>
-                            <div
-                                style={{
-                                    display: "flex",
-                                    alignItems: "center",
-                                    marginTop: "10px",
-                                }}
-                            >
-                                <Title type="secondary" level={4} style={{ marginTop: "5px" }}>
-                                    {highestBid ? "Current Bidder" : "No Bids"}
-                                </Title>
-                                {highestBid !== 0 && highestBid && (
-                                    <Link href="/profile/[profile]" as={`/profile/${buyer}`}>
-                                        <a>
-                                            <Button
-                                                style={{ marginLeft: "10px", marginTop: 0 }}
-                                                shape="round"
-                                            >
-                                                {truncateStr(
-                                                    userIsHighbidder ? "You" : buyer ?? "",
-                                                    15
-                                                )}
-                                            </Button>
-                                        </a>
-                                    </Link>
-                                )}
-                            </div>
-                        </Col>
+        return (
+            <div style={{ display: "flex", justifyContent: "space-between" }}>
+                <span style={{ fontSize: "16px" }}>
+                    {item.__typename} by <span style={{ fontWeight: "bold" }}>{displayUser}</span>{" "}
+                </span>
+                <span
+                    style={{
+                        fontSize: "20px",
+                        fontWeight: "bold",
+                    }}
+                >
+                    {formatUnits(amount)}
+                </span>
+            </div>
+        )
+    }
 
-                        <Col span={2}>
-                            <Divider
-                                type="vertical"
-                                style={{
-                                    marginTop: "0 10px",
-                                    height: "100%",
-                                    width: "10px",
-                                }}
-                            />
-                        </Col>
-                        <Col span={11}>
-                            <Title type="secondary" level={4}>
-                                Time Remaining
-                            </Title>
-                            <Countdown
-                                format={`DD:HH:mm:ss`} //format={""} format will show value at same time as prefix unless we comment out
-                                value={endTime * 1000}
-                                onFinish={() => onFinish()}
-                            />
-                        </Col>
-                    </Row>
-                    <SaleCardButton
-                        title={userIsSeller ? "Cancel Auction" : "Place Bid"}
-                        buyer={buyer}
-                        disableButton={userIsHighbidder}
-                        handleButtonClick={handleButtonClick}
-                    />
-                </div>
-            )}
-        </>
-    )
-}
-
-const Description = ({
-    attributes,
-    nftAddress,
-    renderItem,
-    tokenProvenance,
-    tokenDescription,
-}) => {
     return (
         <>
             <Col span={12}>
@@ -818,6 +511,45 @@ const Description = ({
 export async function getServerSideProps({ params, res }) {
     const { tokenId, collectionAddress } = params || {}
 
+    // const mockFixed = {
+    //     __typename: "activeFixedPriceItems",
+    //     id: "0x30x001737dd2f65795b30f9476b9e087ad4fbe8b376",
+    //     buyer: "0x0000000000000000000000000000000000000000",
+    //     seller: "0xb68c38d85F7fd44aF18da28d81a2BEEAcbbba4C3",
+    //     nftAddress: "0x001737dd2f65795b30f9476b9e087ad4fbe8b376",
+    //     price: "100200000000000000",
+    //     tokenId: "3",
+    //     resulted: false,
+    //     canceled: false,
+    //     block: {
+    //         __typename: "Block",
+    //         id: "0x23a2360",
+    //         number: "37364560",
+    //         timestamp: "1687965650",
+    //     },
+    // }
+
+    // const mockAuctions = {
+    //     __typename: "activeAuctionItem",
+    //     id: "0x30x001737dd2f65795b30f9476b9e087ad4fbe8b376",
+    //     nftAddress: "0x001737dd2f65795b30f9476b9e087ad4fbe8b376",
+    //     tokenId: "3",
+    //     seller: "0xb68c38d85F7fd44aF18da28d81a2BEEAcbbba4C3",
+    //     reservePrice: "200000000000000000",
+    //     startTime: "1687284334",
+    //     endTime: "1687484334",
+    //     buyer: "0x0000000000000000000000000000000000000000",
+    //     highestBid: "300000000000000000",
+    //     resulted: false,
+    //     canceled: false,
+    //     block: {
+    //         __typename: "Block",
+    //         id: "0x23a2360",
+    //         number: "37364570",
+    //         timestamp: "1687965660",
+    //     },
+    // }
+
     // getServerSideProps & getStaticProps can be passed "context" allowing us to get any params in the route (e.g. the tokenId from the URL)
     const client = new ApolloClient({
         connectToDevTools: true,
@@ -827,42 +559,20 @@ export async function getServerSideProps({ params, res }) {
 
     const id = tokenId + collectionAddress
 
-    // this returns all events for this token
-    const tokenHistory = await client.query({
+    // this returns all events for this token as object of objects
+    const tokenEvents = await client.query({
         query: GET_TOKEN_HISTORY,
         variables: { id: id },
     })
 
-    console.log("tokenHistory: ", tokenHistory)
+    // token has no events/history on Seal we redirect to 500 page
+    const noEvents = Object.values(tokenEvents.data).every((item) => item === null)
 
-    // this returns all active fixed/auction for user but there should only be one at a time?
-    // can make activeAuctionItem not activeAuctionItems? -> inefficient to filter by most recent
-    // can make activeFixedPriceItem not activeFixedPriceItems? -> inefficient to filter by zero address
-    // should add sold/resulted flag to activeFixedPriceItem
-    const { data } = await client.query({
-        query: GET_TOKEN_ACTIVE_ITEMS,
-        variables: { id: id },
-    })
-
-    console.log("data: ", data)
-
-    /* 
-       We display page if item has a tokenMinted event or it is on sale
-       if token is listed for fixed price sale, it will be the only item returned; no historical fixed price sales
-       if token is listed for auction, the most recent will be displayed first; historical auctions also returned
-    */
-    const tokenActivity = [...data.activeFixedPriceItems, ...data.activeAuctionItems]
-
-    if (tokenHistory.data.tokenMinted !== null) {
-        tokenActivity.push(tokenHistory.data.tokenMinted)
-    }
-
-    //////////////////////
+    ///////////////////////
     //  Redirect to 500  //
-    //////////////////////
+    ///////////////////////
 
-    // if tokenActivity is empty; redirect user to 500 page
-    if (tokenActivity.length === 0) {
+    if (noEvents) {
         return {
             redirect: {
                 destination: "/500",
@@ -871,61 +581,135 @@ export async function getServerSideProps({ params, res }) {
         }
     }
 
-    const filteredTokenActivity = tokenActivity.filter(
-        (activity) => !activity.canceled && !activity.resulted
-    )
+    // Return single active
+    // const { data } = await client.query({
+    //     query: TOKEN_ON_SALE_RECORD,
+    //     variables: { id: id },
+    // })
 
-    // Filter out null values
-    const nonNullObjects = Object.values(tokenHistory.data).filter((obj) => obj !== null)
+    // console.log("data_847: ", data)
 
-    // Sort non-null objects by block number in ascending order
-    const sortedObjects = nonNullObjects.sort((obj1, obj2) => {
-        const block1 = obj1.block
-        const block2 = obj2.block
-        return block2.number - block1.number
-    })
+    /* 
+       We display page if item has a tokenMinted event or it is on sale
+    */
+    // const tokenSaleRecord = [...data.activeFixedPriceItems, ...data.activeAuctionItems]
 
-    const tokenProvenance = sortedObjects
-        // use spread operator to get all properties in addition to block
-        .map(({ block: { timestamp }, ...rest }) => ({
-            ...rest,
-            timestamp,
-        }))
-        .map((obj) =>
-            Object.fromEntries(Object.entries(obj).filter(([_, value]) => value !== undefined))
+    // const tokenSaleRecord = [mockAuctions, mockFixed]
+
+    const tokenSaleRecord = []
+
+    // if item is not for sale already "tokenSaleRecord.length === 0" but has a tokenMinted item; we use tokenMinted for the saleCard
+    if (tokenSaleRecord.length === 0 && tokenEvents.data.tokenMinted !== null) {
+        tokenSaleRecord.push(tokenEvents.data.tokenMinted)
+    }
+
+    // Format Token Events for listing in Front End
+    const tokenProvenance = getTokenProvenance(tokenEvents)
+
+    //////////////////////////
+    //  Set up Alchemy SDK  //
+    //////////////////////////
+
+    const provider = new ethers.providers.JsonRpcProvider(process.env.NEXT_PUBLIC_ALCHEMY_URL)
+
+    const fetchTokenData = async () => {
+        const contract = new ethers.Contract(collectionAddress, nftAbi, provider)
+
+        let tokenData
+
+        try {
+            const collectionName = await contract.name()
+            const tokenUri = await contract.tokenURI(tokenId)
+
+            if (tokenUri) {
+                const requestURL = tokenUri.replace("ipfs://", "https://ipfs.io/ipfs/")
+                tokenData = await (await fetch(requestURL)).json()
+                tokenData.image = tokenData.image.replace("ipfs://", "https://ipfs.io/ipfs/")
+
+                tokenData.collectionName = collectionName
+            }
+        } catch (error) {
+            console.log("error: ", error)
+        }
+
+        return tokenData
+    }
+
+    let tokenData = await fetchTokenData()
+
+    ////////////////////////////////////////////
+    // Check if contract is Seal & is private //
+    ////////////////////////////////////////////
+
+    // if Seal we need name & encrypted
+    // if other we need name
+    async function checkSealContract(collectionAddress) {
+        const contractFactory = new ethers.Contract(
+            contractFactoryAddress,
+            contractFactoryAbi,
+            provider
         )
-        .map((obj) => {
-            const options = {
-                day: "2-digit",
-                month: "short",
-                year: "numeric",
-                hour: "2-digit",
-                hour12: true, // display the time in 12-hour format with "am" or "pm" instead of 24-hour format
-                minute: "2-digit",
-                second: "2-digit",
-                timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone, // this line should get browser timezone; VPN doesn't change browser timezone tho so can't test
-            }
-            const { __typename, ...rest } = obj // Destructure the __typename property from the object
-            return {
-                ...rest,
-                timestamp: new Date(obj.timestamp * 1000)
-                    .toLocaleString("en-GB", options) // "en-GB" sets the format of the date
-                    .split(", ")
-                    .join(" @ "), // Split and join the timestamp property with the @ symbol
-                __typename: __typename.split(/(?=[A-Z][^A-Z])/).join(" "), // Split and join the __typename property
-            }
-        })
 
-    console.log("filteredTokenActivity: ", filteredTokenActivity[0])
+        try {
+            // Check for contractAddress in factory contract
+            const deployerAddress = await contractFactory.s_deployedContracts(collectionAddress)
+
+            // if deployerAddress returns zero address it's not Seal
+            if (deployerAddress === "0x0000000000000000000000000000000000000000") {
+                return { sealContract: false, privateView: false }
+            } else {
+                // Check if private
+                const collectionContract = new ethers.Contract(
+                    collectionAddress,
+                    contractAbi,
+                    provider
+                )
+
+                // are contract images encrypted true/false
+                const privateView = await collectionContract.s_private()
+
+                return { sealContract: true, privateView: privateView }
+            }
+        } catch (error) {
+            console.log("error: ", error)
+        }
+    }
+
+    tokenData.sealContract = await checkSealContract(collectionAddress)
+
+    console.log("tokenSaleRecord: ", tokenSaleRecord)
     console.log("tokenProvenance: ", tokenProvenance)
+    console.log("tokenData: ", tokenData)
 
     return {
         props: {
-            data: filteredTokenActivity[0],
+            data: tokenSaleRecord[0],
             tokenProvenance,
+            tokenData,
         },
     }
 }
+
+// async function updateUI() {
+//     // get the tokenUri
+//     const tokenUri = await getTokenUri()
+//     const collectionName = await getName()
+
+//     if (tokenUri) {
+//         // if tokenUri contains "ipfs://" replace it; this is because not all browsers are "ipfs://" compatible
+//         // if tokenUri does not contain "ipfs://" do nothing
+//         const requestURL = tokenUri.replace("ipfs://", "https://ipfs.io/ipfs/")
+//         console.log("requestURL: ", requestURL)
+//         const tokenData = await (await fetch(requestURL)).json()
+//         tokenData.image = tokenData.image.replace("ipfs://", "https://ipfs.io/ipfs/")
+//         setImageUri(tokenData.image.replace("ipfs://", "https://ipfs.io/ipfs/"))
+//         setTokenData(tokenData)
+//         setTokenName(tokenData.name)
+//         setTokenDescription(tokenData.description)
+//         setCollectionName(collectionName)
+//         setAttributes(attributes)
+//     }
+// }
 
 // const mockAuctions = [
 // {
@@ -971,3 +755,6 @@ export async function getServerSideProps({ params, res }) {
 //     canceled: false,
 // },
 // ]
+
+// SUB GRAPH UPDATES //
+// update how event ids are created

@@ -557,7 +557,7 @@ export async function getServerSideProps({ params }) {
     })
 
     ////////////////////////////////////////////////////
-    // Check if contract is MP & has remaining tokens //
+    // Check if contract is Seal & has remaining tokens //
     ////////////////////////////////////////////////////
 
     async function checkSealContract(collectionAddress) {
@@ -572,7 +572,7 @@ export async function getServerSideProps({ params }) {
             // Check for contractAddress in factory contract
             const deployerAddress = await contractFactory.s_deployedContracts(collectionAddress)
 
-            // if deployerAddress returns zero address it's not MP
+            // if deployerAddress returns zero address it's not Seal
             if (deployerAddress === "0x0000000000000000000000000000000000000000") {
                 return { contractDeployer: false }
             } else {
@@ -705,7 +705,7 @@ export async function getServerSideProps({ params }) {
     //  Redirect to 500  //
     ///////////////////////
 
-    // if the collection is not MP and it has no On-Sale items; redirect user to 500 page
+    // if the collection is not Seal and it has no On-Sale items; redirect user to 500 page
     if (collectionData.sealContract === false && activeItems.length === 0) {
         return {
             redirect: {
@@ -716,7 +716,7 @@ export async function getServerSideProps({ params }) {
     }
 
     ////////////////////////////////////
-    //  Get all NFTs for MP contract  //
+    //  Get all NFTs for Seal contract  //
     ////////////////////////////////////
 
     if (collectionData.sealContract !== false) {
@@ -738,7 +738,7 @@ export async function getServerSideProps({ params }) {
         //  Get inActive Items (Not On-Sale) //
         ///////////////////////////////////////
 
-        // we display these tokens only for MP contracts
+        // we display these tokens only for Seal contracts
         const inActiveItems = allNFTs.filter((nft) => {
             // Check if the tokenId of `nft` is not present in `activeItems`
             return !activeItems.some((item) => item.tokenId === nft.tokenId)

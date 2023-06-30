@@ -71,39 +71,30 @@ export const GET_ACTIVE_COLLECTIONS = gql`
     }
 `
 
-// where with two parameters:
-// where: {nftAddress: $nftAddress, tokenId: $tokenId}
-
-export const GET_TOKEN_ACTIVE_ITEMS = gql`
+export const TOKEN_ON_SALE_RECORD = gql`
     query GetTokenActives($id: ID!) {
-        activeAuctionItems(
-            first: 100 # default returned is 100
-            orderBy: endTime # sort by descending endTime which gives us the most recent auctions first
-            orderDirection: desc
-            where: { id: $id }
-        ) {
+        activeAuctionItems(first: 1, where: { id: $id, canceled: false, resulted: false }) {
             id
             nftAddress
             tokenId
             seller
             reservePrice
             startTime
-            endTime # auction is over if endTime < now
-            buyer # empty if no bids; if there are bids, this will be the highest bidder or winner if auction is over
-            highestBid # if no bids, this will be null
+            endTime
+            buyer
+            highestBid
             canceled
             resulted
         }
-        activeFixedPriceItems(
-            first: 100 # default returned is 100
-            where: { buyer: "0x0000000000000000000000000000000000000000", id: $id } # buyer == zeroAddress as this means it is unsold
-        ) {
+        activeFixedPriceItems(first: 1, where: { id: $id, canceled: false, resulted: false }) {
             id
             buyer
             seller
             nftAddress
             tokenId
             price
+            canceled
+            resulted
         }
     }
 `
