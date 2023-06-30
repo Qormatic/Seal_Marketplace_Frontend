@@ -1,8 +1,4 @@
-import {
-    GET_TOKEN_HISTORY,
-    GET_ACTIVE_ITEMS,
-    TOKEN_ON_SALE_RECORD,
-} from "@/constants/subgraphQueries"
+import { GET_TOKEN_HISTORY, TOKEN_ON_SALE_RECORD } from "@/constants/subgraphQueries"
 import { ApolloClient, InMemoryCache, gql, useQuery } from "@apollo/client"
 // import client from "../_app"
 import { useWeb3Contract, useMoralis } from "react-moralis"
@@ -56,7 +52,6 @@ export default function NFTPage({ data, tokenProvenance, tokenData }) {
     const [showModal, setShowModal] = useState(false)
     const [src, setSrc] = useState(tokenData.image)
     const [loading, setLoading] = useState(false)
-    const [auctionFinished, setAuctionFinished] = useState(false)
     const {
         __typename,
         id,
@@ -74,7 +69,9 @@ export default function NFTPage({ data, tokenProvenance, tokenData }) {
         minter,
     } = data
 
-    const { name, collectionName, description } = tokenData
+    const { name, collectionName, Description: description, tokenUri } = tokenData
+    console.log("tokenData: ", tokenData)
+
     const { isWeb3Enabled, account } = useMoralis()
 
     const userIsHighbidder = buyer === account
@@ -114,24 +111,16 @@ export default function NFTPage({ data, tokenProvenance, tokenData }) {
     // tokenData:  {
     //     name: 'Picture 3',
     //     filename: '3.png',
-    //     Date_Created: '2023-01-03',
-    //     Photographer: 'John Doe',
-    //     Location: 'Los Angeles',
-    //     Camera: 'Canon EOS 5D Mark IV',
-    //     Event: 'Hollywood Movie Premiere',
+    //     date_created: '2023-01-03',
+    //     photographer: 'John Doe',
+    //     location: 'Los Angeles',
+    //     camera: 'Canon EOS 5D Mark IV',
+    //     event: 'Hollywood Movie Premiere',
     //     image: 'https://ipfs.io/ipfs/QmXde2Sf7tauR9RBGRWrjMLc2ZjMvQLgWPszB53tvbLs1D/3.png',
     //     collectionName: 'ENCRYPTED 2',
     //     sealContract: { sealContract: true, private: true },
-    // description: "blah blah balh"
+    //     description: "blah blah balh"
     //   }
-
-    /////////////////////////
-    //  getAuctionEndTime  //
-    /////////////////////////
-
-    const onFinish = () => {
-        console.log("finished!")
-    }
 
     /////////////////////////
     //  handleButtonClick  //
@@ -312,6 +301,7 @@ export default function NFTPage({ data, tokenProvenance, tokenData }) {
                                     attributes={attributes}
                                     tokenProvenance={tokenProvenance}
                                     tokenDescription={description}
+                                    tokenUri={tokenUri}
                                 />
                             </Row>
                         </div>
@@ -386,10 +376,19 @@ const OwnerDetails = ({ formattedSellerAddress, seller }) => {
     )
 }
 
-const Description = ({ attributes, tokenProvenance, tokenDescription, account, nftAddress }) => {
+const Description = ({
+    attributes,
+    tokenProvenance,
+    tokenDescription,
+    account,
+    nftAddress,
+    tokenUri,
+}) => {
     //////////////////////
     //  Provenance List //
     //////////////////////
+
+    console.log("tokenDescription: ", tokenDescription)
 
     function renderItem(item) {
         return (
@@ -405,17 +404,30 @@ const Description = ({ attributes, tokenProvenance, tokenDescription, account, n
 
     // title function is run by renderItem
     function createTitle(item) {
-        const itemUser = item.HighestBidder || item.owner || item.buyer || item.minter
+        console.log("item: ", item)
+        const itemUser =
+            item.HighestBidder || item.owner || item.buyer || item.minter || item.seller
         const isCurrentUser = account === itemUser
         const displayUser = isCurrentUser ? "You" : truncateStr(itemUser, 15)
 
-        const amount =
-            item.HighestBid === null ||
-            item.reservePrice === null ||
-            item.price === null ||
-            item.__typename === "Token Minted"
-                ? null
-                : item.HighestBid || item.reservePrice || item.price || "00000"
+        console.log("itemUser: ", itemUser)
+        console.log("isCurrentUser: ", isCurrentUser)
+        console.log("displayUser: ", displayUser)
+        console.log("item: ", item)
+
+        let amount = null
+
+        if (item.__typename !== "Token Minted") {
+            if (item.HighestBid !== null) {
+                amount = item.HighestBid
+            } else if (item.reservePrice !== null) {
+                amount = item.reservePrice
+            } else if (item.price !== null) {
+                amount = item.price
+            }
+        }
+
+        console.log("amount: ", amount)
 
         return (
             <div style={{ display: "flex", justifyContent: "space-between" }}>
@@ -470,7 +482,7 @@ const Description = ({ attributes, tokenProvenance, tokenDescription, account, n
                     </Title>
                     <Divider type="horizontal" style={{ marginTop: "5px" }} />
                     <Row>
-                        <Link href={`https://ipfs.io/ipfs/${nftAddress}`}>
+                        <Link href={tokenUri}>
                             <a target="_blank" style={{ display: "flex", alignItems: "center" }}>
                                 <Image
                                     src="/Ipfs-logo-1024-ice-text.png"
@@ -511,45 +523,6 @@ const Description = ({ attributes, tokenProvenance, tokenDescription, account, n
 export async function getServerSideProps({ params, res }) {
     const { tokenId, collectionAddress } = params || {}
 
-    // const mockFixed = {
-    //     __typename: "activeFixedPriceItems",
-    //     id: "0x30x001737dd2f65795b30f9476b9e087ad4fbe8b376",
-    //     buyer: "0x0000000000000000000000000000000000000000",
-    //     seller: "0xb68c38d85F7fd44aF18da28d81a2BEEAcbbba4C3",
-    //     nftAddress: "0x001737dd2f65795b30f9476b9e087ad4fbe8b376",
-    //     price: "100200000000000000",
-    //     tokenId: "3",
-    //     resulted: false,
-    //     canceled: false,
-    //     block: {
-    //         __typename: "Block",
-    //         id: "0x23a2360",
-    //         number: "37364560",
-    //         timestamp: "1687965650",
-    //     },
-    // }
-
-    // const mockAuctions = {
-    //     __typename: "activeAuctionItem",
-    //     id: "0x30x001737dd2f65795b30f9476b9e087ad4fbe8b376",
-    //     nftAddress: "0x001737dd2f65795b30f9476b9e087ad4fbe8b376",
-    //     tokenId: "3",
-    //     seller: "0xb68c38d85F7fd44aF18da28d81a2BEEAcbbba4C3",
-    //     reservePrice: "200000000000000000",
-    //     startTime: "1687284334",
-    //     endTime: "1687484334",
-    //     buyer: "0x0000000000000000000000000000000000000000",
-    //     highestBid: "300000000000000000",
-    //     resulted: false,
-    //     canceled: false,
-    //     block: {
-    //         __typename: "Block",
-    //         id: "0x23a2360",
-    //         number: "37364570",
-    //         timestamp: "1687965660",
-    //     },
-    // }
-
     // getServerSideProps & getStaticProps can be passed "context" allowing us to get any params in the route (e.g. the tokenId from the URL)
     const client = new ApolloClient({
         connectToDevTools: true,
@@ -557,16 +530,33 @@ export async function getServerSideProps({ params, res }) {
         uri: process.env.NEXT_PUBLIC_SUBGRAPH_URL,
     })
 
-    const id = tokenId + collectionAddress
+    let tokenEvents = {}
 
-    // this returns all events for this token as object of objects
-    const tokenEvents = await client.query({
-        query: GET_TOKEN_HISTORY,
-        variables: { id: id },
-    })
+    console.log("tokenEvents_586: ", tokenEvents)
+    console.log("variables: ", collectionAddress, tokenId)
+
+    try {
+        console.log("HELLO 589")
+
+        // this returns all events for this token as object of objects
+        const result = await client.query({
+            query: GET_TOKEN_HISTORY,
+            variables: { nftAddress: collectionAddress, tokenId: tokenId },
+            fetchPolicy: "network-only",
+        })
+
+        console.log("HELLO 598")
+        console.log("result: ", result)
+
+        tokenEvents = result.data // {event1: [], event2: []}
+    } catch (error) {
+        console.error("Apollo Error_GET_TOKEN_HISTORY:", error)
+        console.log("Error details_GET_TOKEN_HISTORY:", error.networkError, error.graphQLErrors)
+    }
 
     // token has no events/history on Seal we redirect to 500 page
-    const noEvents = Object.values(tokenEvents.data).every((item) => item === null)
+    const noEvents = Object.values(tokenEvents).every((item) => item === null)
+    console.log("noEvents: ", noEvents)
 
     ///////////////////////
     //  Redirect to 500  //
@@ -581,27 +571,38 @@ export async function getServerSideProps({ params, res }) {
         }
     }
 
-    // Return single active
-    // const { data } = await client.query({
-    //     query: TOKEN_ON_SALE_RECORD,
-    //     variables: { id: id },
-    // })
+    const id = tokenId + collectionAddress
 
-    // console.log("data_847: ", data)
+    let data
+
+    try {
+        // Return single active
+        const result = await client.query({
+            query: TOKEN_ON_SALE_RECORD,
+            variables: { id: id },
+            fetchPolicy: "network-only",
+        })
+
+        data = result.data
+        console.log("data: ", data)
+    } catch (error) {
+        console.error("Apollo Error_TOKEN_ON_SALE_RECORD:", error)
+        console.log("Error details_TOKEN_ON_SALE_RECORD:", error.networkError, error.graphQLErrors)
+    }
+
+    console.log("data: ", data)
 
     /* 
        We display page if item has a tokenMinted event or it is on sale
     */
-    // const tokenSaleRecord = [...data.activeFixedPriceItems, ...data.activeAuctionItems]
-
-    // const tokenSaleRecord = [mockAuctions, mockFixed]
-
-    const tokenSaleRecord = []
+    const tokenSaleRecord = [...data.activeFixedPriceItems, ...data.activeAuctionItems]
 
     // if item is not for sale already "tokenSaleRecord.length === 0" but has a tokenMinted item; we use tokenMinted for the saleCard
-    if (tokenSaleRecord.length === 0 && tokenEvents.data.tokenMinted !== null) {
-        tokenSaleRecord.push(tokenEvents.data.tokenMinted)
+    if (tokenSaleRecord.length === 0 && tokenEvents.tokenMinteds !== null) {
+        tokenSaleRecord.push(tokenEvents.tokenMinteds[0])
     }
+
+    console.log("tokenSaleRecord: ", tokenSaleRecord)
 
     // Format Token Events for listing in Front End
     const tokenProvenance = getTokenProvenance(tokenEvents)
@@ -627,6 +628,7 @@ export async function getServerSideProps({ params, res }) {
                 tokenData.image = tokenData.image.replace("ipfs://", "https://ipfs.io/ipfs/")
 
                 tokenData.collectionName = collectionName
+                tokenData.tokenUri = tokenUri
             }
         } catch (error) {
             console.log("error: ", error)
@@ -690,71 +692,56 @@ export async function getServerSideProps({ params, res }) {
     }
 }
 
-// async function updateUI() {
-//     // get the tokenUri
-//     const tokenUri = await getTokenUri()
-//     const collectionName = await getName()
-
-//     if (tokenUri) {
-//         // if tokenUri contains "ipfs://" replace it; this is because not all browsers are "ipfs://" compatible
-//         // if tokenUri does not contain "ipfs://" do nothing
-//         const requestURL = tokenUri.replace("ipfs://", "https://ipfs.io/ipfs/")
-//         console.log("requestURL: ", requestURL)
-//         const tokenData = await (await fetch(requestURL)).json()
-//         tokenData.image = tokenData.image.replace("ipfs://", "https://ipfs.io/ipfs/")
-//         setImageUri(tokenData.image.replace("ipfs://", "https://ipfs.io/ipfs/"))
-//         setTokenData(tokenData)
-//         setTokenName(tokenData.name)
-//         setTokenDescription(tokenData.description)
-//         setCollectionName(collectionName)
-//         setAttributes(attributes)
-//     }
+// const mockFixed = {
+//     __typename: "activeFixedPriceItems",
+//     id: "0x30x001737dd2f65795b30f9476b9e087ad4fbe8b376",
+//     buyer: "0x0000000000000000000000000000000000000000",
+//     seller: "0xb68c38d85F7fd44aF18da28d81a2BEEAcbbba4C3",
+//     nftAddress: "0x001737dd2f65795b30f9476b9e087ad4fbe8b376",
+//     price: "100200000000000000",
+//     tokenId: "3",
+//     resulted: false,
+//     canceled: false,
+//     block: {
+//         __typename: "Block",
+//         id: "0x23a2360",
+//         number: "37364560",
+//         timestamp: "1687965650",
+//     },
 // }
 
-// const mockAuctions = [
-// {
-//     __typename: "ActiveAuctionItem", // ongoing auction
-//     id: "0x70xdb13cbda9cfa26cf5ab62b622a3488e212097c9b",
-//     nftAddress: "0xdb13cbda9cfa26cf5ab62b622a3488e212097c9b",
-//     tokenId: "7",
-//     seller: "0xa6de4e91ce03321be8b947d2936d13b4e6d9b42f",
+// const mockAuctions = {
+//     __typename: "activeAuctionItem",
+//     id: "0x30x001737dd2f65795b30f9476b9e087ad4fbe8b376",
+//     nftAddress: "0x001737dd2f65795b30f9476b9e087ad4fbe8b376",
+//     tokenId: "3",
+//     seller: "0xb68c38d85F7fd44aF18da28d81a2BEEAcbbba4C3",
 //     reservePrice: "200000000000000000",
-//     startTime: "1682874000",
-//     endTime: "1683046800",
+//     startTime: "1687284334",
+//     endTime: "1687484334",
 //     buyer: "0x0000000000000000000000000000000000000000",
 //     highestBid: "300000000000000000",
 //     resulted: false,
 //     canceled: false,
-// },
-// {
-//     __typename: "ActiveAuctionItem", // finished auction no winner
-//     id: "0x70xdb13cbda9cfa26cf5ab62b622a3488e212097c9b",
-//     nftAddress: "0xdb13cbda9cfa26cf5ab62b622a3488e212097c9b",
-//     tokenId: "7",
-//     seller: "0xa6de4e91ce03321be8b947d2936d13b4e6d9b42f",
-//     reservePrice: "200000000000000000",
-//     startTime: "1682874000",
-//     endTime: "1682150000",
-//     buyer: "0x0000000000000000000000000000000000000000",
-//     highestBid: null,
-//     resulted: false,
-//     canceled: false,
-// },
-// {
-//     __typename: "ActiveAuctionItem", // finished auction with winner
-//     id: "0x70xdb13cbda9cfa26cf5ab62b622a3488e212097c9b",
-//     nftAddress: "0xdb13cbda9cfa26cf5ab62b622a3488e212097c9b",
-//     tokenId: "7",
-//     seller: "0xa6de4e91ce03321be8b947d2936d13b4e6d9b42f",
-//     reservePrice: "200000000000000000",
-//     startTime: "1682874000",
-//     endTime: "1682150000",
-//     buyer: "0x865C2d460d0c577DD31Db62abE8C89bB9465E1A9",
-//     highestBid: "300000000000000000",
-//     resulted: false,
-//     canceled: false,
-// },
-// ]
+//     block: {
+//         __typename: "Block",
+//         id: "0x23a2360",
+//         number: "37364570",
+//         timestamp: "1687965660",
+//     },
+// }
 
-// SUB GRAPH UPDATES //
-// update how event ids are created
+// const mockEvent = {
+//     tokenMinted: {
+//         __typename: "TokenMinted",
+//         id: "10x26622f083b1a1e8f6f0de4d603bd061038468bf7",
+//         minter: "0xb68c38d85f7fd44af18da28d81a2beeacbbba4c3",
+//         nftAddress: "0x26622f083b1a1e8f6f0de4d603bd061038468bf7",
+//         tokenId: "1",
+//         block: {
+//             id: "0x23a9b37",
+//             number: "37395255",
+//             timestamp: "1688057760",
+//         },
+//     },
+// }

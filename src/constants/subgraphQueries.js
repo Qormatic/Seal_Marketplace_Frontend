@@ -7,7 +7,7 @@ export const GET_ACTIVE_ITEMS = gql`
     {
         activeFixedPriceItems(
             first: 100
-            where: { buyer: "0x0000000000000000000000000000000000000000" } # buyer == zeroAddress as this means it is unsold
+            where: { resulted: false, canceled: false } # buyer == zeroAddress as this means it is unsold
         ) {
             id
             buyer
@@ -100,22 +100,21 @@ export const TOKEN_ON_SALE_RECORD = gql`
 `
 
 export const GET_TOKEN_HISTORY = gql`
-    query GetTokenHistory($id: ID!) {
-        # In GraphQL, the exclamation mark ! after a type or a parameter indicates that it is a non-null value.
-        # $id is the variable that will be passed into the query
-        tokenMinted(id: $id) {
+    query GetTokenHistory($nftAddress: Bytes!, $tokenId: BigInt!) {
+        tokenMinteds(where: { nftAddress: $nftAddress, tokenId: $tokenId }) {
             id
+            tokenId
             minter
             nftAddress
-            tokenId
             block {
                 id
                 number
                 timestamp
             }
         }
-        auctionCancelled(id: $id) {
+        auctionCancelleds(where: { nftAddress: $nftAddress, tokenId: $tokenId }) {
             id
+            tokenId
             nftAddress
             seller
             block {
@@ -124,25 +123,25 @@ export const GET_TOKEN_HISTORY = gql`
                 timestamp
             }
         }
-        auctionCreated(id: $id) {
-            endTime
+        auctionCreateds(where: { nftAddress: $nftAddress, tokenId: $tokenId }) {
             id
+            tokenId
+            endTime
             nftAddress
             reservePrice
             seller
             startTime
-            tokenId
             block {
                 id
                 number
                 timestamp
             }
         }
-        auctionResulted(id: $id) {
+        auctionResulteds(where: { nftAddress: $nftAddress, tokenId: $tokenId }) {
             id
+            tokenId
             nftAddress
             seller
-            tokenId
             winner
             winningBid
             block {
@@ -151,58 +150,34 @@ export const GET_TOKEN_HISTORY = gql`
                 timestamp
             }
         }
-        bidPlaced(id: $id) {
+        bidPlaceds(where: { nftAddress: $nftAddress, tokenId: $tokenId }) {
+            id
+            tokenId
             HighestBid
             HighestBidder
-            id
             nftAddress
-            tokenId
             block {
                 id
                 number
                 timestamp
             }
         }
-        itemBought(id: $id) {
+        itemBoughts(where: { nftAddress: $nftAddress, tokenId: $tokenId }) {
+            id
+            tokenId
             buyer
-            id
             nftAddress
             price
-            tokenId
             block {
                 id
                 number
                 timestamp
             }
         }
-        itemCanceled(id: $id) {
+        itemCanceleds(where: { nftAddress: $nftAddress, tokenId: $tokenId }) {
             id
-            nftAddress
-            seller
             tokenId
-            block {
-                id
-                number
-                timestamp
-            }
-        }
-        itemListed(id: $id) {
-            id
             nftAddress
-            price
-            seller
-            tokenId
-            block {
-                id
-                number
-                timestamp
-            }
-        }
-        itemUpdated(id: $id) {
-            id
-            nftAddress
-            price
-            tokenId
             seller
             block {
                 id
@@ -210,45 +185,69 @@ export const GET_TOKEN_HISTORY = gql`
                 timestamp
             }
         }
-        updateAuctionEndTime(id: $id) {
+        itemListeds(where: { nftAddress: $nftAddress, tokenId: $tokenId }) {
+            id
+            tokenId
+            nftAddress
+            price
+            seller
+            block {
+                id
+                number
+                timestamp
+            }
+        }
+        itemUpdateds(where: { nftAddress: $nftAddress, tokenId: $tokenId }) {
+            id
+            tokenId
+            nftAddress
+            price
+            seller
+            block {
+                id
+                number
+                timestamp
+            }
+        }
+        updateAuctionEndTimes(where: { nftAddress: $nftAddress, tokenId: $tokenId }) {
+            id
+            tokenId
             endTime
-            id
             nftAddress
-            tokenId
             block {
                 id
                 number
                 timestamp
             }
         }
-        updateAuctionReservePrice(id: $id) {
+        updateAuctionReservePrices(where: { nftAddress: $nftAddress, tokenId: $tokenId }) {
             id
+            tokenId
             nftAddress
             reservePrice
-            tokenId
             block {
                 id
                 number
                 timestamp
             }
         }
-        updateAuctionStartTime(id: $id) {
+        updateAuctionStartTimes(where: { nftAddress: $nftAddress, tokenId: $tokenId }) {
             id
+            tokenId
             nftAddress
             startTime
-            tokenId
             block {
                 id
                 number
                 timestamp
             }
         }
-        bidWithdrawn(id: $id) {
+        bidWithdrawns(where: { nftAddress: $nftAddress, tokenId: $tokenId }) {
+            id
+            tokenId
             HighestBid
             HighestBidder
-            id
             nftAddress
-            tokenId
             block {
                 id
                 number
@@ -257,6 +256,7 @@ export const GET_TOKEN_HISTORY = gql`
         }
     }
 `
+
 export const GET_USER_COLLECTION = gql`
     query GetCollection($id: ID!) {
         contractCreated(id: $id) {
@@ -280,10 +280,7 @@ export const GET_ACTIVE_COLLECTION_ITEMS = gql`
     query GetActiveCollectionItems($collectionAddress: String!, $currentTime: Int!) {
         activeFixedPriceItems(
             first: 100
-            where: {
-                buyer: "0x0000000000000000000000000000000000000000"
-                nftAddress: $collectionAddress
-            }
+            where: { nftAddress: $collectionAddress, canceled: false, resulted: false }
         ) {
             id
             buyer

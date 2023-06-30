@@ -1,3 +1,3 @@
-name,filename,Date_Created,Photographer,Location,Camera,Event,Description
+name,filename,date_created,photographer,location,camera,event,description
 001,1.png,2023-01-01,John Doe,New York,Nikon D850,The Renaissance Revisited,Explore the masterpieces of the Renaissance period in this breathtaking virtual gallery.
 002,2.png,2023-01-02,John Doe,New York,Nikon D850,Symphony Under the Stars,An open-air orchestral performance featuring timeless classics perfect for a romantic summer night.

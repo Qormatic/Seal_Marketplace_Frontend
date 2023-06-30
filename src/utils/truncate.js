@@ -16,8 +16,8 @@ export const truncateStr = (fullStr, strLen) => {
 }
 
 export const formatUnits = (amount) => {
-    if (amount === null) {
-        return "null"
+    if (amount === null || amount === undefined) {
+        return amount !== undefined ? amount : null
     }
     return ethers.utils.formatUnits(amount, "ether")
 }

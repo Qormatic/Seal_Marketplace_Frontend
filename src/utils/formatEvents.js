@@ -1,6 +1,11 @@
 export const getTokenProvenance = (tokenEvents) => {
     // Filter out null event objects
-    const nonNullObjects = Object.values(tokenEvents.data).filter((obj) => obj !== null)
+    const nonNullObjects = Object.values(tokenEvents)
+        .filter((array) => array.length !== 0) // filter out empty arrays
+        .flat() // flatten the array of arrays
+        .filter((obj) => obj !== null) // filter out null values
+
+    console.log("nonNullObjects: ", nonNullObjects)
 
     // Sort non-null objects by ascending block.timestamp - oldest first
     const sortedObjects = nonNullObjects.sort((obj1, obj2) => {
@@ -8,6 +13,8 @@ export const getTokenProvenance = (tokenEvents) => {
         const block2 = obj2.block
         return block2.number - block1.number
     })
+
+    console.log("sortedObjects: ", sortedObjects)
 
     // Update our events ready to be displayed in front end
     return sortedObjects

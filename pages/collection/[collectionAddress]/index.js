@@ -18,6 +18,7 @@ import contractAbi from "@/constants/Seal_721_Contract.json"
 import { Fragment } from "react"
 import nftAbi from "@/constants/BasicNft.json"
 import { truncateStr } from "@/utils/truncate"
+import { getDecryptedImage } from "@/utils/decryptImage"
 import Link from "next/link"
 import { networkMapping } from "@/constants"
 import { NftFilters, Alchemy, Network } from "alchemy-sdk"
@@ -49,13 +50,13 @@ const mumbaiChain = "80001"
 const contractFactoryAddress = mumbaiChain ? networkMapping[mumbaiChain].ContractFactory[0] : null
 
 export default function CollectionPage({ NFTListData, collectionData, profileData }) {
-    const [imageURI, setImageURI] = useState("")
+    const [imageUri, setImageUri] = useState("")
     const [showOnSale, setShowOnSale] = useState(true)
     const [showAll, setShowAll] = useState(true)
     const [showAuction, setShowAuction] = useState(false)
     const [showFixedPrice, setShowFixedPrice] = useState(false)
     const [isOwner, setIsOwner] = useState(null)
-    const [src, setSrc] = useState(imageURI)
+    const [src, setSrc] = useState(imageUri)
 
     const { isWeb3Enabled, chainId, account } = useMoralis()
     const { runContractFunction } = useWeb3Contract()
@@ -82,7 +83,7 @@ export default function CollectionPage({ NFTListData, collectionData, profileDat
     //  Get Owners not On-Sale NFTs  //
     ///////////////////////////////////
 
-    let offSaleNfts
+    let offSaleNfts = []
     if (NFTListData.inActiveItems) {
         offSaleNfts = NFTListData.inActiveItems
     }
@@ -100,21 +101,6 @@ export default function CollectionPage({ NFTListData, collectionData, profileDat
         }
     }
 
-    ///////////////////////////
-    //  Set Owner/Not Owner  //
-    ///////////////////////////
-
-    // toggle if current user is the collection owner
-    const handleSetOwner = () => {
-        console.log("account: ", account)
-        console.log("collectionData.contractDeployer: ", collectionData.contractDeployer)
-
-        if (account === collectionData.contractDeployer.toLowerCase()) {
-            setIsOwner(true)
-        } else {
-            setIsOwner(false)
-        }
-    }
     console.log("collectionData: ", collectionData)
     console.log("isOwner: ", isOwner)
 
@@ -140,16 +126,33 @@ export default function CollectionPage({ NFTListData, collectionData, profileDat
         setShowFixedPrice(false)
     }
 
+    ///////////////////////////
+    //  Set Owner/Not Owner  //
+    ///////////////////////////
+
+    // toggle if current user is the collection owner
+    const checkOwner = () => {
+        console.log("account: ", account)
+        console.log("collectionData.contractDeployer: ", collectionData.contractDeployer)
+
+        if (account === collectionData.contractDeployer.toLowerCase()) {
+            setIsOwner(true)
+        } else {
+            setIsOwner(false)
+        }
+    }
+
     //////////////////////
     //  Get Page Image  //
     //////////////////////
 
-    async function updateUI() {
-        const noNFTs = Object.values(NFTListData).every((array) => array.length === 0)
+    console.log("NFTListData: ", NFTListData)
 
-        // if (!allOnSaleNfts.length) {
-        //     setShowOnSale(false) // filter offSale NFTs if there are no onSale
-        // }
+    async function updateUI() {
+        const isOwner = account === collectionData.contractDeployer.toLowerCase()
+
+        // check if all arrays in NFTListData are empty
+        const noNFTs = Object.values(NFTListData).every((array) => array.length === 0)
 
         if (noNFTs === true) {
             console.log(`${noNFTs} NFTListData passed from getServerSideProps is empty!`)
@@ -159,38 +162,63 @@ export default function CollectionPage({ NFTListData, collectionData, profileDat
         let tokenURI
         let nft
 
-        if (allOnSaleNfts.length > 0) {
-            nft = allOnSaleNfts[0]
+        if (
+            collectionData.sealContract === true &&
+            collectionData.private === true &&
+            isOwner === true
+        ) {
+            const NFTListDataArray = [
+                ...NFTListData.activeFixedPriceItems,
+                ...NFTListData.activeAuctionItems,
+                ...NFTListData.inActiveItems,
+            ]
 
-            if (nft.nftAddress) {
-                const params = {
-                    abi: nftAbi,
-                    contractAddress: nft.nftAddress,
-                    functionName: "tokenURI",
-                    params: {
-                        tokenId: nft.tokenId,
-                    },
-                }
+            nft = NFTListDataArray[0]
 
-                tokenURI = await runContractFunction({ params: params })
-            }
-        }
+            const decryptedImage = await getDecryptedImage(nft.imageUri)
+            setSrc(decryptedImage)
+        } else if (collectionData.sealContract === true) {
+            const NFTListDataArray = [
+                ...NFTListData.activeFixedPriceItems,
+                ...NFTListData.activeAuctionItems,
+                ...NFTListData.inActiveItems,
+            ]
 
-        if (!tokenURI && offSaleNfts.length > 0) {
-            nft = offSaleNfts[0]
-            tokenURI = nft.tokenUri
-        }
+            nft = NFTListDataArray[0]
 
-        console.log("tokenURI: ", tokenURI)
-
-        if (tokenURI) {
-            const requestURL = tokenURI.replace("ipfs://", "https://ipfs.io/ipfs/")
-            const tokenURIResponse = await fetch(requestURL).then((res) => res.json())
-            const imageURI = tokenURIResponse.image
-            const imageURIURL = imageURI.replace("ipfs://", "https://ipfs.io/ipfs/")
-            setImageURI(imageURIURL)
+            setSrc(nft.imageUri) // change here
         } else {
-            console.log("No tokenURI found for this NFT")
+            const NFTListDataArray = [
+                ...NFTListData.activeFixedPriceItems,
+                ...NFTListData.activeAuctionItems,
+            ]
+
+            nft = NFTListDataArray[0]
+
+            const params = {
+                abi: nftAbi,
+                contractAddress: nft.nftAddress,
+                functionName: "tokenURI",
+                params: {
+                    tokenId: nft.tokenId,
+                },
+            }
+
+            try {
+                tokenURI = await runContractFunction({ params: params })
+
+                if (tokenURI) {
+                    const requestURL = tokenURI.replace("ipfs://", "https://ipfs.io/ipfs/")
+                    const tokenURIResponse = await fetch(requestURL).then((res) => res.json())
+                    const imageUri = tokenURIResponse.image
+                    const imageUriURL = imageUri.replace("ipfs://", "https://ipfs.io/ipfs/")
+                    setSrc(imageUriURL) // and here
+                } else {
+                    console.log("No tokenURI found for this NFT")
+                }
+            } catch (error) {
+                console.log(error)
+            }
         }
     }
 
@@ -215,9 +243,15 @@ export default function CollectionPage({ NFTListData, collectionData, profileDat
 
     // run updateUI if isWeb3Enabled changes
     useEffect(() => {
-        handleSetOwner()
+        checkOwner()
         updateUI()
     }, [account])
+
+    // useEffect(() => {
+    //     if (isWeb3Enabled) {
+    //         checkImage()
+    //     }
+    // }, [isWeb3Enabled])
 
     return (
         <div>
@@ -590,7 +624,10 @@ export async function getServerSideProps({ params }) {
                 let bigNum = ethers.BigNumber.from(difference)
                 let remainingSupply = bigNum.toString()
 
-                return { contractDeployer: deployerAddress, remainingSupply: remainingSupply }
+                return {
+                    contractDeployer: deployerAddress,
+                    remainingSupply: remainingSupply,
+                }
             }
         } catch (error) {
             console.log("error: ", error)
@@ -604,7 +641,7 @@ export async function getServerSideProps({ params }) {
     let collection
 
     // if sealCheck.deployerAddress is not false
-    if (sealCheck.deployerAddress !== false) {
+    if (sealCheck.contractDeployer !== false) {
         ///////////////////////////////////
         //  Get Seal Collection Details  //
         ///////////////////////////////////
@@ -668,8 +705,6 @@ export async function getServerSideProps({ params }) {
         }
     }
 
-    console.log("collectionData: ", collectionData)
-
     /////////////////////////
     //  Get On-Sale Items  //
     /////////////////////////
@@ -681,7 +716,7 @@ export async function getServerSideProps({ params }) {
     let data = { activeFixedPriceItems: [], activeAuctionItems: [] }
 
     try {
-        const { data } = await client.query({
+        const response = await client.query({
             query: GET_ACTIVE_COLLECTION_ITEMS,
             variables: {
                 collectionAddress: collectionAddress,
@@ -689,13 +724,17 @@ export async function getServerSideProps({ params }) {
             },
         })
 
-        console.log(data)
+        console.log(response.data)
+
+        data = response.data
     } catch (error) {
         console.error(error)
     }
 
     // create new var bcos "data" is not editable
     let newData = { ...data }
+
+    console.log("newData: ", newData)
 
     const activeItems = [...newData.activeFixedPriceItems, ...newData.activeAuctionItems]
 
@@ -756,6 +795,9 @@ export async function getServerSideProps({ params }) {
     const randomAvatar = avatars[Math.floor(Math.random() * avatars.length)]
 
     let profileData = [randomDescription, randomAvatar]
+
+    console.log("newData: ", newData)
+    console.log("collectionData: ", collectionData)
 
     return {
         props: { NFTListData: newData, collectionData, profileData },
