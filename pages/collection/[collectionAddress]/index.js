@@ -590,9 +590,9 @@ export async function getServerSideProps({ params }) {
         network: Network.MATIC_MUMBAI,
     })
 
-    ////////////////////////////////////////////////////
-    // Check if contract is Seal & has remaining tokens //
-    ////////////////////////////////////////////////////
+    ///////////////////////////////////////////////////
+    // Check if Seal contract & has remaining tokens //
+    ///////////////////////////////////////////////////
 
     async function checkSealContract(collectionAddress) {
         const provider = new ethers.providers.JsonRpcProvider(process.env.NEXT_PUBLIC_ALCHEMY_URL)
@@ -711,8 +711,6 @@ export async function getServerSideProps({ params }) {
 
     const currentTime = Math.floor(Date.now() / 1000)
 
-    // let data = { activeFixedPriceItems: [], activeAuctionItems: [] }
-
     let data = { activeFixedPriceItems: [], activeAuctionItems: [] }
 
     try {
@@ -758,7 +756,7 @@ export async function getServerSideProps({ params }) {
     //  Get all NFTs for Seal contract  //
     ////////////////////////////////////
 
-    if (collectionData.sealContract !== false) {
+    if (collectionData.sealContract === true) {
         const { ownedNfts } = await alchemy.nft.getNftsForOwner(collectionData.contractDeployer, {
             contractAddresses: [collectionAddress],
             omitMetadata: false,
@@ -798,6 +796,7 @@ export async function getServerSideProps({ params }) {
 
     console.log("newData: ", newData)
     console.log("collectionData: ", collectionData)
+    console.log("profileData: ", profileData)
 
     return {
         props: { NFTListData: newData, collectionData, profileData },
