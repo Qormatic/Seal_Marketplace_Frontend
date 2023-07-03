@@ -23,7 +23,7 @@ export default function Profile() {
     async function decryptImage() {
         // Fetch the image data
         const response = await fetch(
-            "https://ipfs.io/ipfs/QmXRpxhJiNStUjzj6edDUsoCy1uu51Rp1kgcJtCXrZjJAo/2.png"
+            "https://ipfs.io/ipfs/QmcRUiySejjmS86facCs8r7gK1E4mNoDW2ZfgAhb4ATEs9/1.png"
         )
 
         console.log("response: ", response)

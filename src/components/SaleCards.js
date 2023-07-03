@@ -1,5 +1,4 @@
 import styles from "@/styles/components.module.css"
-
 import {
     Layout,
     Row,
@@ -9,12 +8,16 @@ import {
     Button,
     Avatar,
     Divider,
+    Countdown,
     Space,
     List,
     message,
     Statistic,
     notification,
 } from "antd"
+
+import { useEffect, useState } from "react"
+
 const { Title, Text } = Typography
 
 // rendered differently depending on if it comes from fixedPriceDisplay or auctionDisplay
@@ -34,7 +37,7 @@ const SaleCardButton = ({ handleButtonClick, title, disableButton }) => {
     )
 }
 
-export const FixedPriceDisplay = ({ handleButtonClick, userIsSeller, price }) => {
+export const FixedPriceDisplay = ({ handleButtonClick, isOwner, price }) => {
     return (
         <>
             <Title type="secondary" level={4}>
@@ -45,14 +48,14 @@ export const FixedPriceDisplay = ({ handleButtonClick, userIsSeller, price }) =>
             </Title>
             <SaleCardButton
                 title={"Buy Now"}
-                disableButton={userIsSeller}
+                disableButton={isOwner}
                 handleButtonClick={handleButtonClick}
             />
         </>
     )
 }
 
-export const OfferDisplay = ({ handleButtonClick, userIsSeller }) => {
+export const OfferDisplay = ({ handleButtonClick, isOwner }) => {
     return (
         <>
             <Title type="secondary" level={4}>
@@ -63,7 +66,7 @@ export const OfferDisplay = ({ handleButtonClick, userIsSeller }) => {
             </Title>
             <SaleCardButton
                 title={"Make Offer"}
-                disableButton={userIsSeller}
+                disableButton={isOwner}
                 handleButtonClick={handleButtonClick}
             />
         </>
@@ -71,158 +74,168 @@ export const OfferDisplay = ({ handleButtonClick, userIsSeller }) => {
 }
 
 export const AuctionDisplay = ({
-    buyer,
     endTime,
-    onFinish,
+    buyer,
     highestBid,
     reservePrice,
-    userIsSeller,
+    isOwner,
     userIsHighbidder,
     handleButtonClick,
 }) => {
-    console.log("userIsSeller: ", userIsSeller)
+    const [clientRender, setClientRender] = useState(false)
+
+    console.log("isOwner: ", isOwner)
     console.log("userIsHighbidder: ", userIsHighbidder)
+
+    const onFinish = () => {
+        console.log("TIMER FINISHED")
+    }
+
+    useEffect(() => {
+        setClientRender(true)
+    }, [])
 
     return (
         <>
-            {endTime < Date.now() / 1000 ? ( // display if endTime in past and auction not resulted or canceled
-                <div>
-                    <Row style={{ height: "100%" }}>
-                        <Col span={11}>
-                            <Title type="secondary" level={4}>
-                                Auction
-                            </Title>
-                            <Title level={4} style={{ margin: 0 }} type="primary">
-                                {highestBid ? `Winning Bid ${highestBid} ETH` : "No Winning Bid"}
-                            </Title>
-                            <div
-                                style={{
-                                    display: "flex",
-                                    alignItems: "center",
-                                    marginTop: "10px",
-                                }}
-                            >
-                                <Title type="secondary" level={4} style={{ marginTop: "5px" }}>
-                                    {highestBid ? "Winner" : "No Winner"}
+            {clientRender &&
+                (endTime < Date.now() / 1000 ? (
+                    // display if endTime in past and auction not resulted or canceled
+                    <div>
+                        <Row style={{ height: "100%" }}>
+                            <Col span={11}>
+                                <Title type="secondary" level={4}>
+                                    Auction
                                 </Title>
-                                {highestBid !== 0 && highestBid && (
-                                    <Link href="/profile/[profile]" as={`/profile/${buyer}`}>
-                                        <a>
-                                            <Button
-                                                style={{ marginLeft: "10px", marginTop: 0 }}
-                                                shape="round"
-                                            >
-                                                {truncateStr(buyer ?? "", 15)}
-                                            </Button>
-                                        </a>
-                                    </Link>
-                                )}
-                            </div>
-                        </Col>
-                        <Col span={2}>
-                            <Divider
-                                type="vertical"
-                                style={{
-                                    marginTop: "0 10px",
-                                    height: "100%",
-                                    width: "10px",
-                                }}
-                            />
-                        </Col>
-                        <Col span={11}>
-                            <Title type="secondary" level={4}>
-                                Time Remaining
-                            </Title>
-                            <Countdown
-                                format={`DD:HH:mm:ss`} //format={""} format will show value at same time as prefix unless we comment out
-                                value={endTime * 1000}
-                                onFinish={() => onFinish()}
-                            />
-                        </Col>
-                    </Row>
-
-                    <SaleCardButton
-                        title={
-                            userIsSeller
-                                ? highestBid
-                                    ? "Result Auction"
-                                    : "Cancel Auction"
-                                : "Auction Ended"
-                        }
-                        buyer={buyer}
-                        disableButton={!userIsSeller}
-                        handleButtonClick={handleButtonClick}
-                    />
-                </div>
-            ) : (
-                <div>
-                    <Row style={{ height: "100%" }}>
-                        <Col span={11}>
-                            <Title type="secondary" level={4}>
-                                Auction
-                            </Title>
-                            <Title level={3} style={{ margin: 0 }} type="primary">
-                                {highestBid
-                                    ? `Current Bid ${highestBid} ETH`
-                                    : `Reserve ${reservePrice} ETH`}
-                            </Title>
-                            <div
-                                style={{
-                                    display: "flex",
-                                    alignItems: "center",
-                                    marginTop: "10px",
-                                }}
-                            >
-                                <Title type="secondary" level={4} style={{ marginTop: "5px" }}>
-                                    {highestBid ? "Current Bidder" : "No Bids"}
+                                <Title level={4} style={{ margin: 0 }} type="primary">
+                                    {highestBid
+                                        ? `Winning Bid ${highestBid} ETH`
+                                        : "No Winning Bid"}
                                 </Title>
-                                {highestBid !== 0 && highestBid && (
-                                    <Link href="/profile/[profile]" as={`/profile/${buyer}`}>
-                                        <a>
-                                            <Button
-                                                style={{ marginLeft: "10px", marginTop: 0 }}
-                                                shape="round"
-                                            >
-                                                {truncateStr(
-                                                    userIsHighbidder ? "You" : buyer ?? "",
-                                                    15
-                                                )}
-                                            </Button>
-                                        </a>
-                                    </Link>
-                                )}
-                            </div>
-                        </Col>
-
-                        <Col span={2}>
-                            <Divider
-                                type="vertical"
-                                style={{
-                                    marginTop: "0 10px",
-                                    height: "100%",
-                                    width: "10px",
-                                }}
-                            />
-                        </Col>
-                        <Col span={11}>
-                            <Title type="secondary" level={4}>
-                                Time Remaining
-                            </Title>
-                            <Countdown
-                                format={`DD:HH:mm:ss`} //format={""} format will show value at same time as prefix unless we comment out
-                                value={endTime * 1000}
-                                onFinish={() => onFinish()}
-                            />
-                        </Col>
-                    </Row>
-                    <SaleCardButton
-                        title={userIsSeller ? "Cancel Auction" : "Place Bid"}
-                        buyer={buyer}
-                        disableButton={userIsHighbidder}
-                        handleButtonClick={handleButtonClick}
-                    />
-                </div>
-            )}
+                                <div
+                                    style={{
+                                        display: "flex",
+                                        alignItems: "center",
+                                        marginTop: "10px",
+                                    }}
+                                >
+                                    <Title type="secondary" level={4} style={{ marginTop: "5px" }}>
+                                        {highestBid ? "Winner" : "No Winner"}
+                                    </Title>
+                                    {highestBid !== 0 && highestBid && (
+                                        <Link href="/profile/[profile]" as={`/profile/${buyer}`}>
+                                            <a>
+                                                <Button
+                                                    style={{ marginLeft: "10px", marginTop: 0 }}
+                                                    shape="round"
+                                                >
+                                                    {truncateStr(buyer ?? "", 15)}
+                                                </Button>
+                                            </a>
+                                        </Link>
+                                    )}
+                                </div>
+                            </Col>
+                            <Col span={2}>
+                                <Divider
+                                    type="vertical"
+                                    style={{
+                                        marginTop: "0 10px",
+                                        height: "100%",
+                                        width: "10px",
+                                    }}
+                                />
+                            </Col>
+                            <Col span={11}>
+                                <Title type="secondary" level={4}>
+                                    Time Remaining
+                                </Title>
+                                {/* <Countdown
+                                format={`DD:HH:mm:ss`} // format={""} format will show value at same time as prefix unless we comment out
+                                value={"00:00:00:00"} // This will set the timer to "00:00:00:00" because the value is the current time
+                            /> */}
+                            </Col>
+                        </Row>
+                        <SaleCardButton
+                            title={
+                                isOwner
+                                    ? highestBid
+                                        ? "Result Auction"
+                                        : "Cancel Auction"
+                                    : "Auction Ended"
+                            }
+                            buyer={buyer}
+                            disableButton={!isOwner}
+                            handleButtonClick={handleButtonClick}
+                        />
+                    </div>
+                ) : (
+                    <div>
+                        <Row style={{ height: "100%" }}>
+                            <Col span={11}>
+                                <Title type="secondary" level={4}>
+                                    Auction
+                                </Title>
+                                <Title level={3} style={{ margin: 0 }} type="primary">
+                                    {highestBid
+                                        ? `Current Bid ${highestBid} ETH`
+                                        : `Reserve ${reservePrice} ETH`}
+                                </Title>
+                                <div
+                                    style={{
+                                        display: "flex",
+                                        alignItems: "center",
+                                        marginTop: "10px",
+                                    }}
+                                >
+                                    <Title type="secondary" level={4} style={{ marginTop: "5px" }}>
+                                        {highestBid ? "Current Bidder" : "No Bids"}
+                                    </Title>
+                                    {highestBid !== 0 && highestBid && (
+                                        <Link href="/profile/[profile]" as={`/profile/${buyer}`}>
+                                            <a>
+                                                <Button
+                                                    style={{ marginLeft: "10px", marginTop: 0 }}
+                                                    shape="round"
+                                                >
+                                                    {truncateStr(
+                                                        userIsHighbidder ? "You" : buyer ?? "",
+                                                        15
+                                                    )}
+                                                </Button>
+                                            </a>
+                                        </Link>
+                                    )}
+                                </div>
+                            </Col>
+                            <Col span={2}>
+                                <Divider
+                                    type="vertical"
+                                    style={{
+                                        marginTop: "0 10px",
+                                        height: "100%",
+                                        width: "10px",
+                                    }}
+                                />
+                            </Col>
+                            <Col span={11}>
+                                <Title type="secondary" level={4}>
+                                    Time Remaining
+                                </Title>
+                                <Countdown
+                                    format={`DD:HH:mm:ss`} // format={""} format will show value at same time as prefix unless we comment out
+                                    value={endTime * 1000}
+                                    onFinish={onFinish}
+                                />
+                            </Col>
+                        </Row>
+                        <SaleCardButton
+                            title={isOwner ? "Cancel Auction" : "Place Bid"}
+                            buyer={buyer}
+                            disableButton={userIsHighbidder}
+                            handleButtonClick={handleButtonClick}
+                        />
+                    </div>
+                ))}
         </>
     )
 }

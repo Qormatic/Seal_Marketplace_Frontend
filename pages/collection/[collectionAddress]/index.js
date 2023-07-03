@@ -13,17 +13,15 @@ import NFTList from "@/components/NFTList"
 import NFTList_OffSale from "@/components/NFTList_OffSale"
 import { useWeb3Contract, useMoralis } from "react-moralis"
 import { avatars, collectionDescriptions } from "@/constants/fluff"
-import contractFactoryAbi from "@/constants/Seal_ContractFactory.json"
 import contractAbi from "@/constants/Seal_721_Contract.json"
 import { Fragment } from "react"
 import nftAbi from "@/constants/BasicNft.json"
 import { truncateStr } from "@/utils/truncate"
 import { getDecryptedImage } from "@/utils/decryptImage"
+import { checkSealContract } from "@/utils/sealContract"
 import Link from "next/link"
-import { networkMapping } from "@/constants"
 import { NftFilters, Alchemy, Network } from "alchemy-sdk"
 import { ethers } from "ethers"
-
 import { useEffect, useState } from "react"
 import {
     Layout,
@@ -46,22 +44,32 @@ import {
 
 const { Header, Content, Footer } = Layout
 const { Title, Text } = Typography
-const mumbaiChain = "80001"
-const contractFactoryAddress = mumbaiChain ? networkMapping[mumbaiChain].ContractFactory[0] : null
 
 export default function CollectionPage({ NFTListData, collectionData, profileData }) {
-    const [imageUri, setImageUri] = useState("")
     const [showOnSale, setShowOnSale] = useState(true)
     const [showAll, setShowAll] = useState(true)
     const [showAuction, setShowAuction] = useState(false)
     const [showFixedPrice, setShowFixedPrice] = useState(false)
-    const [isOwner, setIsOwner] = useState(null)
-    const [src, setSrc] = useState(imageUri)
+    const [isOwner, setIsOwner] = useState(false)
+    const [src, setSrc] = useState("/images/placeholder.png")
 
     const { isWeb3Enabled, chainId, account } = useMoralis()
-    const { runContractFunction } = useWeb3Contract()
 
-    const allOnSaleNfts = [...NFTListData.activeFixedPriceItems, ...NFTListData.activeAuctionItems]
+    //////////////////////////////
+    //  Get On & Off-Sale NFTs  //
+    //////////////////////////////
+
+    // let allNfts = []
+    let offSaleNfts = []
+    let allOnSaleNfts = []
+
+    // allNfts = [
+    //     ...NFTListData.activeFixedPriceItems,
+    //     ...NFTListData.activeAuctionItems,
+    //     ...NFTListData.inActiveItems,
+    // ]
+    offSaleNfts = [...NFTListData.inActiveItems]
+    allOnSaleNfts = [...NFTListData.activeFixedPriceItems, ...NFTListData.activeAuctionItems]
 
     //////////////////
     //  Mint Modal  //
@@ -79,15 +87,6 @@ export default function CollectionPage({ NFTListData, collectionData, profileDat
         setShowMintModal(false)
     }
 
-    ///////////////////////////////////
-    //  Get Owners not On-Sale NFTs  //
-    ///////////////////////////////////
-
-    let offSaleNfts = []
-    if (NFTListData.inActiveItems) {
-        offSaleNfts = NFTListData.inActiveItems
-    }
-
     ////////////////////////////////////
     //  For Sale/Not For Sale Filter  //
     ////////////////////////////////////
@@ -100,9 +99,6 @@ export default function CollectionPage({ NFTListData, collectionData, profileDat
             setShowOnSale(true) // if showOnSale is false, set it to true
         }
     }
-
-    console.log("collectionData: ", collectionData)
-    console.log("isOwner: ", isOwner)
 
     ///////////////////////////////
     //  For Sale Filter Buttons  //
@@ -126,99 +122,52 @@ export default function CollectionPage({ NFTListData, collectionData, profileDat
         setShowFixedPrice(false)
     }
 
-    ///////////////////////////
-    //  Set Owner/Not Owner  //
-    ///////////////////////////
-
-    // toggle if current user is the collection owner
-    const checkOwner = () => {
-        console.log("account: ", account)
-        console.log("collectionData.contractDeployer: ", collectionData.contractDeployer)
-
-        if (account === collectionData.contractDeployer.toLowerCase()) {
-            setIsOwner(true)
-        } else {
-            setIsOwner(false)
-        }
-    }
-
     //////////////////////
     //  Get Page Image  //
     //////////////////////
 
-    console.log("NFTListData: ", NFTListData)
-
     async function updateUI() {
         const isOwner = account === collectionData.contractDeployer.toLowerCase()
 
-        // check if all arrays in NFTListData are empty
-        const noNFTs = Object.values(NFTListData).every((array) => array.length === 0)
-
-        if (noNFTs === true) {
-            console.log(`${noNFTs} NFTListData passed from getServerSideProps is empty!`)
-            return
+        if (isOwner) {
+            setIsOwner(true)
+        } else {
+            setIsOwner(false)
         }
-
-        let tokenURI
-        let nft
 
         if (
             collectionData.sealContract === true &&
             collectionData.private === true &&
             isOwner === true
         ) {
-            const NFTListDataArray = [
-                ...NFTListData.activeFixedPriceItems,
-                ...NFTListData.activeAuctionItems,
-                ...NFTListData.inActiveItems,
-            ]
-
-            nft = NFTListDataArray[0]
-
-            const decryptedImage = await getDecryptedImage(nft.imageUri)
-            setSrc(decryptedImage)
-        } else if (collectionData.sealContract === true) {
-            const NFTListDataArray = [
-                ...NFTListData.activeFixedPriceItems,
-                ...NFTListData.activeAuctionItems,
-                ...NFTListData.inActiveItems,
-            ]
-
-            nft = NFTListDataArray[0]
-
-            setSrc(nft.imageUri) // change here
-        } else {
-            const NFTListDataArray = [
-                ...NFTListData.activeFixedPriceItems,
-                ...NFTListData.activeAuctionItems,
-            ]
-
-            nft = NFTListDataArray[0]
-
-            const params = {
-                abi: nftAbi,
-                contractAddress: nft.nftAddress,
-                functionName: "tokenURI",
-                params: {
-                    tokenId: nft.tokenId,
+            fetch("/api/decrypt", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
                 },
-            }
-
-            try {
-                tokenURI = await runContractFunction({ params: params })
-
-                if (tokenURI) {
-                    const requestURL = tokenURI.replace("ipfs://", "https://ipfs.io/ipfs/")
-                    const tokenURIResponse = await fetch(requestURL).then((res) => res.json())
-                    const imageUri = tokenURIResponse.image
-                    const imageUriURL = imageUri.replace("ipfs://", "https://ipfs.io/ipfs/")
-                    setSrc(imageUriURL) // and here
-                } else {
-                    console.log("No tokenURI found for this NFT")
-                }
-            } catch (error) {
-                console.log(error)
-            }
+                body: JSON.stringify({ imageUri: profileData.imageUri }),
+            })
+                .then((response) => {
+                    if (!response.ok) {
+                        throw new Error(`HTTP error! status: ${response.status}`)
+                    }
+                    return response.json()
+                })
+                .then((data) => {
+                    if (data.error) {
+                        console.error("Error:", data.error)
+                    } else {
+                        console.log("Decrypted image URI:", data.decryptedImageUri)
+                        setSrc(data.decryptedImageUri)
+                    }
+                })
+                .catch((error) => {
+                    console.error("Error:", error)
+                })
+            // const decryptedImage = await getDecryptedImage(profileData.imageUri)
+            // setSrc(decryptedImage)
+        } else {
+            setSrc(profileData.imageUri)
         }
     }
 
@@ -226,7 +175,9 @@ export default function CollectionPage({ NFTListData, collectionData, profileDat
     //  Handle Image Error  //
     //////////////////////////
 
-    const handleError = () => {
+    const handleError = (error) => {
+        console.log("Error: ", error)
+
         setSrc("/images/placeholder.png")
     }
 
@@ -243,15 +194,8 @@ export default function CollectionPage({ NFTListData, collectionData, profileDat
 
     // run updateUI if isWeb3Enabled changes
     useEffect(() => {
-        checkOwner()
         updateUI()
     }, [account])
-
-    // useEffect(() => {
-    //     if (isWeb3Enabled) {
-    //         checkImage()
-    //     }
-    // }, [isWeb3Enabled])
 
     return (
         <div>
@@ -292,7 +236,7 @@ export default function CollectionPage({ NFTListData, collectionData, profileDat
                                         }}
                                     />
                                     <Text style={{ color: "black", fontSize: "50" }}>
-                                        {profileData[0]}
+                                        {profileData.description}
                                     </Text>
                                 </Col>
                             </Row>
@@ -369,6 +313,267 @@ export default function CollectionPage({ NFTListData, collectionData, profileDat
             />
         </div>
     )
+}
+
+export async function getServerSideProps({ params }) {
+    const { collectionAddress } = params || {}
+
+    /////////////////////
+    //  Apollo Client  //
+    /////////////////////
+
+    // "context" contains the parameters used to create the current route user is on
+    const client = new ApolloClient({
+        cache: new InMemoryCache(),
+        uri: process.env.NEXT_PUBLIC_SUBGRAPH_URL,
+    })
+
+    //////////////////////
+    //  Alchemy Client  //
+    //////////////////////
+
+    const alchemy = new Alchemy({
+        apiKey: process.env.NEXT_PUBLIC_ALCHEMY_API_KEY,
+        network: Network.MATIC_MUMBAI,
+    })
+
+    ///////////////////////////////////////////////////
+    // Check if Seal contract & has remaining tokens //
+    ///////////////////////////////////////////////////
+
+    const sealCheck = await checkSealContract(collectionAddress)
+    console.log("sealCheck: ", collectionAddress, sealCheck)
+
+    let collectionData = {}
+    let collection
+
+    ///////////////////////////////////
+    //  Get Seal Collection Details  //
+    ///////////////////////////////////
+
+    // if sealCheck.contractDeployer !== false it's a sealContract
+    if (sealCheck.contractDeployer !== false) {
+        try {
+            const {
+                data: { contractCreated },
+            } = await client.query({
+                query: GET_USER_COLLECTION,
+                variables: {
+                    id: collectionAddress,
+                },
+            })
+            collection = contractCreated
+
+            console.log(collection)
+        } catch (error) {
+            console.error(collection)
+        }
+
+        collectionData = {
+            address: collection.contractAddress,
+            name: collection.name,
+            symbol: collection.symbol,
+            tokenType: collection.tokenType,
+            remainingSupply: sealCheck.remainingSupply,
+            sealContract: true,
+            royaltiesReceiver: collection.royaltiesReceiver,
+            royaltiesPercentage: collection.royaltiesPercentage,
+            private: collection.privateView,
+            createdTimestamp: collection.block.timestamp,
+            contractDeployer:
+                collection.contractDeployer ??
+                (sealCheck.contractDeployer !== false ? sealCheck.contractDeployer : "Unknown"),
+        }
+    } else {
+        ///////////////////////////////////////
+        //  Get External Collection Details  //
+        ///////////////////////////////////////
+
+        try {
+            collection = await alchemy.nft.getContractMetadata(collectionAddress, {
+                // excludeFilters: [NftFilters.SPAM],
+            })
+
+            console.log(collection)
+        } catch (error) {
+            console.error(error)
+        }
+
+        collectionData = {
+            address: collection.address,
+            name: collection.name,
+            symbol: collection.symbol,
+            tokenType: collection.tokenType,
+            remainingSupply: 0,
+            sealContract: false,
+            contractDeployer:
+                collection.contractDeployer ??
+                (sealCheck.contractDeployer !== false ? sealCheck.contractDeployer : "Unknown"),
+        }
+    }
+
+    /////////////////////////
+    //  Get On-Sale Items  //
+    /////////////////////////
+
+    const currentTime = Math.floor(Date.now() / 1000)
+
+    let data = { activeFixedPriceItems: [], activeAuctionItems: [] }
+
+    try {
+        const response = await client.query({
+            query: GET_ACTIVE_COLLECTION_ITEMS,
+            variables: {
+                collectionAddress: collectionAddress,
+                currentTime: currentTime,
+            },
+        })
+
+        console.log(response.data)
+
+        data = response.data
+    } catch (error) {
+        console.error(error)
+    }
+
+    // create new var bcos "data" is not editable
+    let newData = { ...data }
+
+    console.log("newData: ", newData)
+
+    const activeItems = [...newData.activeFixedPriceItems, ...newData.activeAuctionItems]
+
+    console.log("activeItems: ", activeItems)
+
+    ///////////////////////
+    //  Redirect to 500  //
+    ///////////////////////
+
+    // if the collection is not Seal and it has no On-Sale items; redirect user to 500 page
+    if (collectionData.sealContract === false && activeItems.length === 0) {
+        return {
+            redirect: {
+                destination: "/500",
+                permanent: false,
+            },
+        }
+    }
+
+    ////////////////////////////////////
+    //  Get all NFTs for Seal contract  //
+    ////////////////////////////////////
+
+    if (collectionData.sealContract === true) {
+        const { ownedNfts } = await alchemy.nft.getNftsForOwner(collectionData.contractDeployer, {
+            contractAddresses: [collectionAddress],
+            omitMetadata: false,
+        })
+
+        const allNFTs = ownedNfts.map((nft) => {
+            return {
+                tokenId: nft.tokenId,
+                imageUri: nft.rawMetadata.image,
+                tokenUri: nft.tokenUri.raw,
+                nftAddress: collectionAddress,
+            }
+        })
+
+        ///////////////////////////////////////
+        //  Get inActive Items (Not On-Sale) //
+        ///////////////////////////////////////
+
+        // we display these tokens only for Seal contracts
+        const inActiveItems = allNFTs.filter((nft) => {
+            // Check if the tokenId of `nft` is not present in `activeItems`
+            return !activeItems.some((item) => item.tokenId === nft.tokenId)
+        })
+
+        newData.inActiveItems = inActiveItems
+    }
+
+    ///////////////////////
+    //  Get UI Elements  //
+    ///////////////////////
+
+    function getFirstNFTData() {
+        const newDataArray = [
+            ...newData.activeFixedPriceItems,
+            ...newData.activeAuctionItems,
+            ...(collectionData.sealContract ? newData.inActiveItems : []),
+        ]
+
+        console.log("newDataArray: ", newDataArray)
+
+        return newDataArray[0]
+    }
+
+    async function getTokenUri(tokenId) {
+        try {
+            const provider = new ethers.providers.JsonRpcProvider(
+                process.env.NEXT_PUBLIC_ALCHEMY_URL
+            )
+            const contract = new ethers.Contract(collectionAddress, nftAbi, provider)
+
+            const tokenUri = await contract.tokenURI(tokenId)
+
+            console.log("tokenUri_548: ", tokenUri)
+
+            return tokenUri
+        } catch (error) {
+            console.log(error)
+        }
+    }
+
+    async function getImageUri() {
+        // check if all arrays in NFTListData are empty
+        const noNFTs = Object.values(newData).every((array) => array.length === 0)
+
+        if (noNFTs === true) {
+            console.log(`${noNFTs} NFTListData passed from getServerSideProps is empty!`)
+            return null
+        }
+
+        let tokenUri
+        let nft = getFirstNFTData()
+
+        if (collectionData.sealContract === true) {
+            return nft.imageUri
+        } else {
+            try {
+                tokenUri = await getTokenUri(nft.tokenId)
+
+                if (tokenUri) {
+                    const requestURL = tokenUri.replace("ipfs://", "https://ipfs.io/ipfs/")
+                    const tokenUriResponse = await fetch(requestURL).then((res) => res.json())
+                    const imageUriURL = tokenUriResponse.image
+                    const imageUri = imageUriURL.replace("ipfs://", "https://ipfs.io/ipfs/")
+
+                    return imageUri
+                } else {
+                    console.log("No tokenURI found for this NFT")
+                }
+            } catch (error) {
+                console.log(error)
+            }
+        }
+    }
+
+    const imageUri = await getImageUri()
+    console.log("imageUri_588: ", imageUri)
+
+    const randomDescription =
+        collectionDescriptions[Math.floor(Math.random() * collectionDescriptions.length)]
+    const randomAvatar = avatars[Math.floor(Math.random() * avatars.length)]
+
+    let profileData = { description: randomDescription, avatar: randomAvatar, imageUri: imageUri }
+
+    console.log("newData: ", newData)
+    console.log("collectionData: ", collectionData)
+    console.log("profileData: ", profileData)
+
+    return {
+        props: { NFTListData: newData, collectionData, profileData },
+    }
 }
 
 const CollectionInfoCard = ({ isOwner, collectionData, handleOpenMintModal }) => {
@@ -566,239 +771,4 @@ const MintModal = ({
             </Spin>
         </div>
     )
-}
-
-export async function getServerSideProps({ params }) {
-    const { collectionAddress } = params || {}
-
-    /////////////////////
-    //  Apollo Client  //
-    /////////////////////
-
-    // "context" contains the parameters used to create the current route user is on
-    const client = new ApolloClient({
-        cache: new InMemoryCache(),
-        uri: process.env.NEXT_PUBLIC_SUBGRAPH_URL,
-    })
-
-    //////////////////////
-    //  Alchemy Client  //
-    //////////////////////
-
-    const alchemy = new Alchemy({
-        apiKey: process.env.NEXT_PUBLIC_ALCHEMY_API_KEY,
-        network: Network.MATIC_MUMBAI,
-    })
-
-    ///////////////////////////////////////////////////
-    // Check if Seal contract & has remaining tokens //
-    ///////////////////////////////////////////////////
-
-    async function checkSealContract(collectionAddress) {
-        const provider = new ethers.providers.JsonRpcProvider(process.env.NEXT_PUBLIC_ALCHEMY_URL)
-        const contractFactory = new ethers.Contract(
-            contractFactoryAddress,
-            contractFactoryAbi,
-            provider
-        )
-
-        try {
-            // Check for contractAddress in factory contract
-            const deployerAddress = await contractFactory.s_deployedContracts(collectionAddress)
-
-            // if deployerAddress returns zero address it's not Seal
-            if (deployerAddress === "0x0000000000000000000000000000000000000000") {
-                return { contractDeployer: false }
-            } else {
-                // Get remaining Supply
-                const collectionContract = new ethers.Contract(
-                    collectionAddress,
-                    contractAbi,
-                    provider
-                )
-
-                const maxSupply = await collectionContract.s_maxSupply() // total amount allowed to be minted
-                const totalSupply = await collectionContract.totalSupply() // current amount that has been minted
-
-                const difference = maxSupply.sub(totalSupply)
-                let bigNum = ethers.BigNumber.from(difference)
-                let remainingSupply = bigNum.toString()
-
-                return {
-                    contractDeployer: deployerAddress,
-                    remainingSupply: remainingSupply,
-                }
-            }
-        } catch (error) {
-            console.log("error: ", error)
-        }
-    }
-
-    const sealCheck = await checkSealContract(collectionAddress)
-    console.log("sealCheck: ", collectionAddress, sealCheck)
-
-    let collectionData
-    let collection
-
-    // if sealCheck.deployerAddress is not false
-    if (sealCheck.contractDeployer !== false) {
-        ///////////////////////////////////
-        //  Get Seal Collection Details  //
-        ///////////////////////////////////
-
-        try {
-            const {
-                data: { contractCreated },
-            } = await client.query({
-                query: GET_USER_COLLECTION,
-                variables: {
-                    id: collectionAddress,
-                },
-            })
-            collection = contractCreated
-
-            console.log(data)
-        } catch (error) {
-            console.error(error)
-        }
-
-        collectionData = {
-            address: collection.contractAddress,
-            name: collection.name,
-            symbol: collection.symbol,
-            tokenType: collection.tokenType,
-            remainingSupply: sealCheck.remainingSupply,
-            sealContract: true,
-            royaltiesReceiver: collection.royaltiesReceiver,
-            royaltiesPercentage: collection.royaltiesPercentage,
-            private: collection.privateView,
-            createdTimestamp: collection.block.timestamp,
-            contractDeployer:
-                collection.contractDeployer ??
-                (sealCheck.contractDeployer !== false ? sealCheck.contractDeployer : "Unknown"),
-        }
-    } else {
-        ///////////////////////////////////////
-        //  Get External Collection Details  //
-        ///////////////////////////////////////
-
-        try {
-            collection = await alchemy.nft.getContractMetadata(collectionAddress, {
-                // excludeFilters: [NftFilters.SPAM],
-            })
-
-            console.log(data)
-        } catch (error) {
-            console.error(error)
-        }
-
-        collectionData = {
-            address: collection.address,
-            name: collection.name,
-            symbol: collection.symbol,
-            tokenType: collection.tokenType,
-            remainingSupply: 0,
-            sealContract: false,
-            contractDeployer:
-                collection.contractDeployer ??
-                (sealCheck.contractDeployer !== false ? sealCheck.contractDeployer : "Unknown"),
-        }
-    }
-
-    /////////////////////////
-    //  Get On-Sale Items  //
-    /////////////////////////
-
-    const currentTime = Math.floor(Date.now() / 1000)
-
-    let data = { activeFixedPriceItems: [], activeAuctionItems: [] }
-
-    try {
-        const response = await client.query({
-            query: GET_ACTIVE_COLLECTION_ITEMS,
-            variables: {
-                collectionAddress: collectionAddress,
-                currentTime: currentTime,
-            },
-        })
-
-        console.log(response.data)
-
-        data = response.data
-    } catch (error) {
-        console.error(error)
-    }
-
-    // create new var bcos "data" is not editable
-    let newData = { ...data }
-
-    console.log("newData: ", newData)
-
-    const activeItems = [...newData.activeFixedPriceItems, ...newData.activeAuctionItems]
-
-    console.log("activeItems: ", activeItems)
-
-    ///////////////////////
-    //  Redirect to 500  //
-    ///////////////////////
-
-    // if the collection is not Seal and it has no On-Sale items; redirect user to 500 page
-    if (collectionData.sealContract === false && activeItems.length === 0) {
-        return {
-            redirect: {
-                destination: "/500",
-                permanent: false,
-            },
-        }
-    }
-
-    ////////////////////////////////////
-    //  Get all NFTs for Seal contract  //
-    ////////////////////////////////////
-
-    if (collectionData.sealContract === true) {
-        const { ownedNfts } = await alchemy.nft.getNftsForOwner(collectionData.contractDeployer, {
-            contractAddresses: [collectionAddress],
-            omitMetadata: false,
-        })
-
-        const allNFTs = ownedNfts.map((nft) => {
-            return {
-                tokenId: nft.tokenId,
-                imageUri: nft.rawMetadata.image,
-                tokenUri: nft.tokenUri.raw,
-                nftAddress: collectionAddress,
-            }
-        })
-
-        ///////////////////////////////////////
-        //  Get inActive Items (Not On-Sale) //
-        ///////////////////////////////////////
-
-        // we display these tokens only for Seal contracts
-        const inActiveItems = allNFTs.filter((nft) => {
-            // Check if the tokenId of `nft` is not present in `activeItems`
-            return !activeItems.some((item) => item.tokenId === nft.tokenId)
-        })
-
-        newData.inActiveItems = inActiveItems
-    }
-
-    ///////////////////////
-    //  Get UI Elements  //
-    ///////////////////////
-
-    const randomDescription =
-        collectionDescriptions[Math.floor(Math.random() * collectionDescriptions.length)]
-    const randomAvatar = avatars[Math.floor(Math.random() * avatars.length)]
-
-    let profileData = [randomDescription, randomAvatar]
-
-    console.log("newData: ", newData)
-    console.log("collectionData: ", collectionData)
-    console.log("profileData: ", profileData)
-
-    return {
-        props: { NFTListData: newData, collectionData, profileData },
-    }
 }

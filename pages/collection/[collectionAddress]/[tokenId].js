@@ -7,6 +7,18 @@ import Link from "next/link"
 import Image from "next/image"
 import { useEffect, useState } from "react"
 import { NftFilters, Alchemy, Network, Utils } from "alchemy-sdk"
+import { ethers } from "ethers"
+import { FixedPriceDisplay, OfferDisplay, AuctionDisplay } from "@/components/SaleCards"
+import TokenModal from "@/components/TokenModal"
+import { networkMapping } from "@/constants"
+import nftAuctionAbi from "@/constants/Seal_NFTAuction.json"
+import contractAbi from "@/constants/Seal_721_Contract.json"
+import contractFactoryAbi from "@/constants/Seal_ContractFactory.json"
+import { avatars } from "@/constants/fluff"
+import nftAbi from "@/constants/BasicNft.json"
+import { formatKey } from "@/utils/formatKey"
+import { truncateStr, formatUnits } from "@/utils/truncate"
+import { getTokenProvenance } from "@/utils/formatEvents"
 import {
     Layout,
     Row,
@@ -23,23 +35,9 @@ import {
     notification,
 } from "antd"
 
-import { ethers } from "ethers"
-import { FixedPriceDisplay, OfferDisplay, AuctionDisplay } from "@/components/SaleCards"
-import TokenModal from "@/components/TokenModal"
-import { networkMapping } from "@/constants"
-import nftAuctionAbi from "@/constants/Seal_NFTAuction.json"
-import contractAbi from "@/constants/Seal_721_Contract.json"
-import contractFactoryAbi from "@/constants/Seal_ContractFactory.json"
-import { avatars } from "@/constants/fluff"
-import nftAbi from "@/constants/BasicNft.json"
-import { truncateStr, formatUnits } from "@/utils/truncate"
-import { getTokenProvenance } from "@/utils/formatEvents"
-import { getDecryptedImage } from "@/utils/decryptImage"
-
 const AVATAR_URL = avatars[Math.floor(Math.random() * avatars.length)]
 
 const mumbaiChain = "80001"
-
 const contractFactoryAddress = mumbaiChain ? networkMapping[mumbaiChain].ContractFactory[0] : null
 
 const { Header, Content, Footer } = Layout
@@ -48,9 +46,8 @@ const { Countdown } = Statistic
 
 export default function NFTPage({ data, tokenProvenance, tokenData }) {
     // const [imageUri, setImageUri] = useState("")
-    const [attributes, setAttributes] = useState([])
     const [showModal, setShowModal] = useState(false)
-    const [src, setSrc] = useState(tokenData.image)
+    const [src, setSrc] = useState("/images/placeholder.png")
     const [loading, setLoading] = useState(false)
     const {
         __typename,
@@ -76,13 +73,12 @@ export default function NFTPage({ data, tokenProvenance, tokenData }) {
 
     const userIsHighbidder = buyer === account
     const owner = seller ?? minter
-    const userIsSeller = owner === account || owner === undefined
-    const formattedSellerAddress = userIsSeller ? "You" : truncateStr(owner || "", 15)
+    const isOwner = owner === account || owner === undefined
+    const formattedSellerAddress = isOwner ? "You" : truncateStr(owner || "", 15)
 
     const { runContractFunction } = useWeb3Contract()
 
     const { chainId } = useMoralis()
-
     const chainString = chainId ? parseInt(chainId).toString() : null
     const marketplaceAddress = chainId ? networkMapping[chainString].NFTMarketplace[0] : null
     const auctionAddress = chainId ? networkMapping[chainString].NFTAuction[0] : null
@@ -98,29 +94,39 @@ export default function NFTPage({ data, tokenProvenance, tokenData }) {
         } = tokenData
 
         // If sealContract and private are both true and the account is the owner, decrypt the image
-        if (sealContract && privateView && userIsSeller) {
-            const decryptedImage = await getDecryptedImage(imageUri)
-            setSrc(decryptedImage)
-        }
-        // If sealContract and private are not both true, or the account is not the owner, set the imageUri as is
-        else {
+        if (sealContract === true && privateView === true && isOwner === true) {
+            fetch("/api/decrypt", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                },
+                body: JSON.stringify({ imageUri: imageUri }),
+            })
+                .then((response) => {
+                    if (!response.ok) {
+                        throw new Error(`HTTP error! status: ${response.status}`)
+                    }
+                    return response.json()
+                })
+                .then((data) => {
+                    if (data.error) {
+                        console.error("Error:", data.error)
+                    } else {
+                        console.log("Decrypted image URI:", data.decryptedImageUri)
+                        setSrc(data.decryptedImageUri)
+                    }
+                })
+                .catch((error) => {
+                    console.error("Error:", error)
+                })
+
+            // const decryptedImage = await getDecryptedImage(imageUri)
+            // setSrc(decryptedImage)
+        } else {
+            // If sealContract and private are not both true, or the account is not the owner, set the imageUri as is
             setSrc(imageUri)
         }
     }
-
-    // tokenData:  {
-    //     name: 'Picture 3',
-    //     filename: '3.png',
-    //     date_created: '2023-01-03',
-    //     photographer: 'John Doe',
-    //     location: 'Los Angeles',
-    //     camera: 'Canon EOS 5D Mark IV',
-    //     event: 'Hollywood Movie Premiere',
-    //     image: 'https://ipfs.io/ipfs/QmXde2Sf7tauR9RBGRWrjMLc2ZjMvQLgWPszB53tvbLs1D/3.png',
-    //     collectionName: 'ENCRYPTED 2',
-    //     sealContract: { sealContract: true, private: true },
-    //     description: "blah blah balh"
-    //   }
 
     /////////////////////////
     //  handleButtonClick  //
@@ -266,24 +272,24 @@ export default function NFTPage({ data, tokenProvenance, tokenData }) {
                                         {price ? (
                                             <FixedPriceDisplay
                                                 price={formatUnits(price)}
-                                                userIsSeller={userIsSeller}
+                                                isOwner={isOwner}
                                                 handleButtonClick={handleButtonClick}
                                             />
                                         ) : reservePrice ? (
                                             <AuctionDisplay
                                                 endTime={endTime}
-                                                userIsSeller={userIsSeller}
+                                                buyer={buyer}
                                                 highestBid={
                                                     highestBid ? formatUnits(highestBid) : 0
                                                 }
-                                                userIsHighbidder={userIsHighbidder}
-                                                buyer={buyer}
-                                                handleButtonClick={handleButtonClick}
                                                 reservePrice={formatUnits(reservePrice)}
+                                                isOwner={isOwner}
+                                                userIsHighbidder={userIsHighbidder}
+                                                handleButtonClick={handleButtonClick}
                                             />
                                         ) : (
                                             <OfferDisplay
-                                                userIsSeller={userIsSeller}
+                                                isOwner={isOwner}
                                                 handleButtonClick={handleButtonClick}
                                             />
                                         )}
@@ -296,11 +302,9 @@ export default function NFTPage({ data, tokenProvenance, tokenData }) {
                             </Row>
                             <Row gutter={[30, 30]}>
                                 <Description
-                                    nftAddress={nftAddress}
+                                    tokenData={tokenData}
                                     account={account}
-                                    attributes={attributes}
                                     tokenProvenance={tokenProvenance}
-                                    tokenDescription={description}
                                     tokenUri={tokenUri}
                                 />
                             </Row>
@@ -376,19 +380,10 @@ const OwnerDetails = ({ formattedSellerAddress, seller }) => {
     )
 }
 
-const Description = ({
-    attributes,
-    tokenProvenance,
-    tokenDescription,
-    account,
-    nftAddress,
-    tokenUri,
-}) => {
+const Description = ({ tokenData, tokenProvenance, account, tokenUri }) => {
     //////////////////////
     //  Provenance List //
     //////////////////////
-
-    console.log("tokenDescription: ", tokenDescription)
 
     function renderItem(item) {
         return (
@@ -446,6 +441,28 @@ const Description = ({
         )
     }
 
+    // Prepare tokenData
+    let preparedData = { ...tokenData }
+    preparedData = { ...preparedData, ...preparedData.sealContract }
+
+    // Remove unwanted keys
+    delete preparedData.image
+    delete preparedData.description
+    delete preparedData.Description
+    delete preparedData.tokenUri
+
+    // tokenData:  {
+    //     name: '001',
+    //     filename: '1.png',
+    //     Date_Created: '2023-01-01',
+    //     Photographer: 'John Doe',
+    //     Location: 'New York',
+    //     Camera: 'Nikon D850',
+    //     Event: 'The Renaissance Revisited',
+    //     collectionName: 'NEW COLLECTION!!!',
+    //     sealContract: { sealContract: true, privateView: true }
+    //   }
+
     return (
         <>
             <Col span={12}>
@@ -454,28 +471,38 @@ const Description = ({
                         Description
                     </Title>
                     <Divider type="horizontal" style={{ marginTop: "5px" }} />
-                    <Text style={{ fontSize: "16px" }}> {tokenDescription}</Text>
+                    <Text style={{ fontSize: "16px" }}> {tokenData.Description}</Text>
                     <Title level={3} style={{ marginTop: "50px" }}>
-                        Attributes
+                        Metadata
                     </Title>
                     <Divider type="horizontal" style={{ marginTop: "5px" }} />
                     <Row gutter={[16, 16]}>
-                        {attributes
-                            ? attributes.map((attribute, index) => (
-                                  <Col key={index} xs={24} sm={12} md={8}>
-                                      <Card
-                                          title={Object.values(attribute)[0]}
-                                          style={{
-                                              fontSize: "16px",
-                                              font: "black",
-                                              textAlign: "center",
-                                          }}
-                                      >
-                                          <p>{Object.values(attribute)[1]}</p>
-                                      </Card>
-                                  </Col>
-                              ))
-                            : null}
+                        {/* <Col xs={24} sm={12} md={8}> */}
+                        <Card
+                            // title="Token Data"
+                            bordered={false}
+                            style={{
+                                fontSize: "16px",
+                                font: "black",
+                                textAlign: "center",
+                                overflow: "auto",
+                                whiteSpace: "nowrap",
+                                border: "",
+                            }}
+                        >
+                            <table>
+                                {Object.entries(preparedData).map(([key, value], index) => (
+                                    <tr key={index}>
+                                        <td style={{ textAlign: "right", paddingRight: "5px" }}>
+                                            {formatKey(key)}
+                                        </td>
+                                        <td>:</td>
+                                        <td style={{ paddingLeft: "5px" }}>{value.toString()}</td>
+                                    </tr>
+                                ))}
+                            </table>
+                        </Card>
+                        {/* </Col> */}
                     </Row>
                     <Title level={3} style={{ marginTop: "50px" }}>
                         Details
