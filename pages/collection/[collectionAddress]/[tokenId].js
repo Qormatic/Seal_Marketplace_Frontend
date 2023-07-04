@@ -42,7 +42,6 @@ const contractFactoryAddress = mumbaiChain ? networkMapping[mumbaiChain].Contrac
 
 const { Header, Content, Footer } = Layout
 const { Title, Text } = Typography
-const { Countdown } = Statistic
 
 export default function NFTPage({ data, tokenProvenance, tokenData }) {
     // const [imageUri, setImageUri] = useState("")
@@ -66,10 +65,11 @@ export default function NFTPage({ data, tokenProvenance, tokenData }) {
         minter,
     } = data
 
-    const { name, collectionName, Description: description, tokenUri } = tokenData
-    console.log("tokenData: ", tokenData)
-
     const { isWeb3Enabled, account } = useMoralis()
+
+    console.log("account_Description: ", account)
+    console.log("tokenData_Description: ", tokenData)
+    console.log("tokenProvenance_Description: ", tokenProvenance)
 
     const userIsHighbidder = buyer === account
     const owner = seller ?? minter
@@ -242,7 +242,7 @@ export default function NFTPage({ data, tokenProvenance, tokenData }) {
                 data={data}
                 showModal={showModal}
                 setShowModal={setShowModal}
-                collectionName={collectionName}
+                collectionName={tokenData.collectionName}
                 imageUri={src}
             />
             {data && src ? (
@@ -260,8 +260,8 @@ export default function NFTPage({ data, tokenProvenance, tokenData }) {
                                 <Col span={12}>
                                     <Overview
                                         tokenId={tokenId}
-                                        tokenName={name}
-                                        collectionName={collectionName}
+                                        tokenName={tokenData.name}
+                                        collectionName={tokenData.collectionName}
                                         seller={owner}
                                         nftAddress={nftAddress}
                                         formattedSellerAddress={formattedSellerAddress}
@@ -293,7 +293,7 @@ export default function NFTPage({ data, tokenProvenance, tokenData }) {
                                                 handleButtonClick={handleButtonClick}
                                             />
                                         )}
-                                    </Card>
+                                    </Card>{" "}
                                     <OwnerDetails
                                         formattedSellerAddress={formattedSellerAddress}
                                         seller={owner}
@@ -303,9 +303,8 @@ export default function NFTPage({ data, tokenProvenance, tokenData }) {
                             <Row gutter={[30, 30]}>
                                 <Description
                                     tokenData={tokenData}
-                                    account={account}
                                     tokenProvenance={tokenProvenance}
-                                    tokenUri={tokenUri}
+                                    account={account}
                                 />
                             </Row>
                         </div>
@@ -316,6 +315,175 @@ export default function NFTPage({ data, tokenProvenance, tokenData }) {
                 <div>Loading...</div>
             )}
         </div>
+    )
+}
+
+const Description = ({ tokenData, tokenProvenance, account }) => {
+    //////////////////////
+    //  Provenance List //
+    //////////////////////
+
+    console.log("account_Description: ", account)
+    console.log("tokenData_Description: ", tokenData)
+    console.log("tokenProvenance_Description: ", tokenProvenance)
+
+    function renderItem(item) {
+        return (
+            <List.Item>
+                <List.Item.Meta
+                    avatar={<Avatar src={AVATAR_URL} size="large" />}
+                    title={createTitle(item)}
+                    description={item.timestamp}
+                />
+            </List.Item>
+        )
+    }
+
+    // title function is run by renderItem
+    function createTitle(item) {
+        console.log("item: ", item)
+        const itemUser =
+            item.HighestBidder || item.owner || item.buyer || item.minter || item.seller
+        const isCurrentUser = account === itemUser
+        const displayUser = isCurrentUser ? "You" : truncateStr(itemUser, 15)
+
+        let amount = null
+
+        if (item.__typename !== "Token Minted") {
+            if (item.HighestBid !== null) {
+                amount = item.HighestBid
+            } else if (item.reservePrice !== null) {
+                amount = item.reservePrice
+            } else if (item.price !== null) {
+                amount = item.price
+            }
+        }
+
+        return (
+            <div style={{ display: "flex", justifyContent: "space-between" }}>
+                <span style={{ fontSize: "16px" }}>
+                    {item.__typename} by <span style={{ fontWeight: "bold" }}>{displayUser}</span>{" "}
+                </span>
+                <span
+                    style={{
+                        fontSize: "20px",
+                        fontWeight: "bold",
+                    }}
+                >
+                    {formatUnits(amount)}
+                </span>
+            </div>
+        )
+    }
+
+    // tokenData:  {
+    //     name: '001',
+    //     filename: '1.png',
+    //     Date_Created: '2023-01-01',
+    //     Photographer: 'John Doe',
+    //     Location: 'New York',
+    //     Camera: 'Nikon D850',
+    //     Event: 'The Renaissance Revisited',
+    //     collectionName: 'NEW COLLECTION!!!',
+    //     sealContract: { sealContract: true, privateView: true }
+    //   }
+
+    // Remove unwanted keys; flatten sealContract
+    let preparedData = { ...tokenData }
+    preparedData = { ...preparedData, ...preparedData.sealContract }
+
+    delete preparedData.tokenUri
+    delete preparedData.image
+    delete preparedData.attributes
+    if ("description" in preparedData) {
+        delete preparedData.description
+    }
+    if ("Description" in preparedData) {
+        delete preparedData.Description
+    }
+
+    return (
+        <>
+            <Col span={12}>
+                <div style={{ marginTop: "50px" }}>
+                    <Title level={3} style={{ margin: 0 }}>
+                        Description
+                    </Title>
+                    <Divider type="horizontal" style={{ marginTop: "5px" }} />
+                    <Text style={{ fontSize: "16px" }}>
+                        {" "}
+                        {tokenData.Description ? tokenData.Description : tokenData.description}
+                    </Text>
+                    <Title level={3} style={{ marginTop: "50px" }}>
+                        Metadata
+                    </Title>
+                    <Divider type="horizontal" style={{ marginTop: "5px" }} />
+                    <Card
+                        // title="Token Data"
+                        bordered={false}
+                        style={{
+                            fontSize: "16px",
+                            font: "black",
+                            textAlign: "center",
+                            overflow: "auto",
+                            whiteSpace: "nowrap",
+                            border: "",
+                        }}
+                    >
+                        <table>
+                            <tbody>
+                                {Object.entries(preparedData).map(([key, value], index) => (
+                                    <tr key={index}>
+                                        <td style={{ textAlign: "right", paddingRight: "5px" }}>
+                                            {formatKey(key)}
+                                        </td>
+                                        <td>:</td>
+                                        <td style={{ paddingLeft: "5px" }}>{value.toString()}</td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </Card>
+                    <Title level={3} style={{ marginTop: "50px" }}>
+                        Details
+                    </Title>
+                    <Divider type="horizontal" style={{ marginTop: "5px" }} />
+                    <Row>
+                        <Link href={tokenData.tokenUri}>
+                            <a target="_blank" style={{ display: "flex", alignItems: "center" }}>
+                                <Image
+                                    src="/Ipfs-logo-1024-ice-text.png"
+                                    alt="Logo"
+                                    width={30}
+                                    height={30}
+                                />
+                                <Title
+                                    style={{
+                                        marginTop: "3px",
+                                        marginLeft: "10px",
+                                        whiteSpace: "nowrap",
+                                        overflow: "hidden",
+                                        textOverflow: "ellipsis",
+                                    }}
+                                    level={5}
+                                >
+                                    View token on IPFS Database
+                                </Title>
+                            </a>
+                        </Link>
+                    </Row>
+                </div>
+            </Col>
+            <Col span={12}>
+                <div style={{ marginTop: "50px" }}>
+                    <Title level={3} style={{ margin: 0 }}>
+                        Provenance
+                    </Title>
+                    <Divider type="horizontal" style={{ marginTop: "5px" }} />
+                    <List size="large" dataSource={tokenProvenance} renderItem={renderItem} />
+                </div>
+            </Col>
+        </>
     )
 }
 
@@ -377,173 +545,6 @@ const OwnerDetails = ({ formattedSellerAddress, seller }) => {
                 </Link>
             </Col>
         </Row>
-    )
-}
-
-const Description = ({ tokenData, tokenProvenance, account, tokenUri }) => {
-    //////////////////////
-    //  Provenance List //
-    //////////////////////
-
-    function renderItem(item) {
-        return (
-            <List.Item>
-                <List.Item.Meta
-                    avatar={<Avatar src={AVATAR_URL} size="large" />}
-                    title={createTitle(item)}
-                    description={item.timestamp}
-                />
-            </List.Item>
-        )
-    }
-
-    // title function is run by renderItem
-    function createTitle(item) {
-        console.log("item: ", item)
-        const itemUser =
-            item.HighestBidder || item.owner || item.buyer || item.minter || item.seller
-        const isCurrentUser = account === itemUser
-        const displayUser = isCurrentUser ? "You" : truncateStr(itemUser, 15)
-
-        console.log("itemUser: ", itemUser)
-        console.log("isCurrentUser: ", isCurrentUser)
-        console.log("displayUser: ", displayUser)
-        console.log("item: ", item)
-
-        let amount = null
-
-        if (item.__typename !== "Token Minted") {
-            if (item.HighestBid !== null) {
-                amount = item.HighestBid
-            } else if (item.reservePrice !== null) {
-                amount = item.reservePrice
-            } else if (item.price !== null) {
-                amount = item.price
-            }
-        }
-
-        console.log("amount: ", amount)
-
-        return (
-            <div style={{ display: "flex", justifyContent: "space-between" }}>
-                <span style={{ fontSize: "16px" }}>
-                    {item.__typename} by <span style={{ fontWeight: "bold" }}>{displayUser}</span>{" "}
-                </span>
-                <span
-                    style={{
-                        fontSize: "20px",
-                        fontWeight: "bold",
-                    }}
-                >
-                    {formatUnits(amount)}
-                </span>
-            </div>
-        )
-    }
-
-    // Prepare tokenData
-    let preparedData = { ...tokenData }
-    preparedData = { ...preparedData, ...preparedData.sealContract }
-
-    // Remove unwanted keys
-    delete preparedData.image
-    delete preparedData.description
-    delete preparedData.Description
-    delete preparedData.tokenUri
-
-    // tokenData:  {
-    //     name: '001',
-    //     filename: '1.png',
-    //     Date_Created: '2023-01-01',
-    //     Photographer: 'John Doe',
-    //     Location: 'New York',
-    //     Camera: 'Nikon D850',
-    //     Event: 'The Renaissance Revisited',
-    //     collectionName: 'NEW COLLECTION!!!',
-    //     sealContract: { sealContract: true, privateView: true }
-    //   }
-
-    return (
-        <>
-            <Col span={12}>
-                <div style={{ marginTop: "50px" }}>
-                    <Title level={3} style={{ margin: 0 }}>
-                        Description
-                    </Title>
-                    <Divider type="horizontal" style={{ marginTop: "5px" }} />
-                    <Text style={{ fontSize: "16px" }}> {tokenData.Description}</Text>
-                    <Title level={3} style={{ marginTop: "50px" }}>
-                        Metadata
-                    </Title>
-                    <Divider type="horizontal" style={{ marginTop: "5px" }} />
-                    <Row gutter={[16, 16]}>
-                        {/* <Col xs={24} sm={12} md={8}> */}
-                        <Card
-                            // title="Token Data"
-                            bordered={false}
-                            style={{
-                                fontSize: "16px",
-                                font: "black",
-                                textAlign: "center",
-                                overflow: "auto",
-                                whiteSpace: "nowrap",
-                                border: "",
-                            }}
-                        >
-                            <table>
-                                {Object.entries(preparedData).map(([key, value], index) => (
-                                    <tr key={index}>
-                                        <td style={{ textAlign: "right", paddingRight: "5px" }}>
-                                            {formatKey(key)}
-                                        </td>
-                                        <td>:</td>
-                                        <td style={{ paddingLeft: "5px" }}>{value.toString()}</td>
-                                    </tr>
-                                ))}
-                            </table>
-                        </Card>
-                        {/* </Col> */}
-                    </Row>
-                    <Title level={3} style={{ marginTop: "50px" }}>
-                        Details
-                    </Title>
-                    <Divider type="horizontal" style={{ marginTop: "5px" }} />
-                    <Row>
-                        <Link href={tokenUri}>
-                            <a target="_blank" style={{ display: "flex", alignItems: "center" }}>
-                                <Image
-                                    src="/Ipfs-logo-1024-ice-text.png"
-                                    alt="Logo"
-                                    width={30}
-                                    height={30}
-                                />
-                                <Title
-                                    style={{
-                                        marginTop: "3px",
-                                        marginLeft: "10px",
-                                        whiteSpace: "nowrap",
-                                        overflow: "hidden",
-                                        textOverflow: "ellipsis",
-                                    }}
-                                    level={5}
-                                >
-                                    View token on IPFS Database
-                                </Title>
-                            </a>
-                        </Link>
-                    </Row>
-                </div>
-            </Col>
-            <Col span={12}>
-                <div style={{ marginTop: "50px" }}>
-                    <Title level={3} style={{ margin: 0 }}>
-                        Provenance
-                    </Title>
-                    <Divider type="horizontal" style={{ marginTop: "5px" }} />
-                    <List size="large" dataSource={tokenProvenance} renderItem={renderItem} />
-                </div>
-            </Col>
-        </>
     )
 }
 
@@ -739,13 +740,13 @@ export async function getServerSideProps({ params, res }) {
 
 // const mockAuctions = {
 //     __typename: "activeAuctionItem",
-//     id: "0x30x001737dd2f65795b30f9476b9e087ad4fbe8b376",
-//     nftAddress: "0x001737dd2f65795b30f9476b9e087ad4fbe8b376",
-//     tokenId: "3",
+//     id: "0x00x8344a3cd512e4e539679de40428da942a78dea86",
+//     nftAddress: "0x8344a3cd512e4e539679de40428da942a78dea86",
+//     tokenId: "0",
 //     seller: "0xb68c38d85F7fd44aF18da28d81a2BEEAcbbba4C3",
 //     reservePrice: "200000000000000000",
 //     startTime: "1687284334",
-//     endTime: "1687484334",
+//     endTime: "1689008400",
 //     buyer: "0x0000000000000000000000000000000000000000",
 //     highestBid: "300000000000000000",
 //     resulted: false,
