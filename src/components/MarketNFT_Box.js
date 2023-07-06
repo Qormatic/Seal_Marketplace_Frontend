@@ -100,13 +100,16 @@ export default function MktNFT_Box({
                     <a>
                         <Card
                             hoverable
-                            style={{ width: "90%", margin: 10 }}
+                            style={{ width: 250, margin: 10 }}
                             cover={
                                 <Image
                                     loader={() => imageURI}
                                     src={imageURI}
                                     height="250"
                                     width="250"
+                                    // layout="fill"
+                                    objectFit="contain"
+                                    // style={{ height: "250px", width: "250px", objectFit: "cover" }}
                                 />
                             }
                         >
@@ -115,10 +118,14 @@ export default function MktNFT_Box({
                                     fontSize: "25px",
                                     textAlign: "center",
                                     marginBottom: "10px",
+                                    overflow: "hidden",
+                                    textOverflow: "ellipsis",
+                                    whiteSpace: "nowrap",
+                                    width: "100%", // specify the width
                                 }}
                             >
                                 {" "}
-                                {tokenName} #{tokenId}
+                                {tokenName}
                             </div>
                             <Meta
                                 avatar={<Avatar src={randomAvatar} />}

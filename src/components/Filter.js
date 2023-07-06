@@ -50,87 +50,60 @@ export function NFT_WalletFilter({ handleShowOnSaleItems, showOnSale, showSellBu
 
 // Further filters those NFTs that are ON sale
 export function NFT_OnSaleFilter({
+    allNftsLength,
     fixedNftsLength,
     auctionNftsLength,
-    allNftsLength,
-    handleFixedPriceFilter,
-    handleAuctionFilter,
-    handleShowAllActive,
-    showFixedPrice,
-    showAuction,
-    showAllActive,
+    handleFilterChange,
+    filterState,
 }) {
-    const allItemsButtonStyle = {
-        background: showAllActive ? "black" : "white",
-        color: showAllActive ? "white" : "black",
-        marginLeft: "5px",
-    }
-
-    const allItemsBadgeStyle = {
-        background: showAllActive ? "white" : "black",
-        color: showAllActive ? "black" : "white",
-        marginLeft: "5px",
-    }
-
-    const fixedPriceButtonStyle = {
+    const buttonStyle = {
         borderRadius: "20px",
-        background: showFixedPrice ? "black" : "white",
-        color: showFixedPrice ? "white" : "black",
-    }
-
-    const fixedPriceBadgeStyle = {
-        background: showFixedPrice ? "white" : "black",
-        color: showFixedPrice ? "black" : "white",
+        background: "white",
+        color: "black",
         marginLeft: "5px",
     }
 
-    const auctionButtonStyle = {
-        borderRadius: "20px",
-        background: showAuction ? "black" : "white",
-        color: showAuction ? "white" : "black",
-    }
-
-    const auctionBadgeStyle = {
-        background: showAuction ? "white" : "black",
-        color: showAuction ? "black" : "white",
+    const badgeStyle = {
+        background: "black",
+        color: "white",
         marginLeft: "5px",
     }
+
+    const activeButtonStyle = {
+        ...buttonStyle,
+        background: "black",
+        color: "white",
+    }
+
+    const activeBadgeStyle = {
+        ...badgeStyle,
+        background: "white",
+        color: "black",
+    }
+
+    const filters = [
+        { state: "all", label: "All Items", count: allNftsLength },
+        { state: "fixedPrice", label: "Fixed-price", count: fixedNftsLength },
+        { state: "auction", label: "For Auction", count: auctionNftsLength },
+    ]
 
     return (
         <div>
             <Space style={{ marginBottom: "10px", background: "white" }}>
-                <Button
-                    style={allItemsButtonStyle}
-                    shape="round"
-                    onClick={() => handleShowAllActive()}
-                >
-                    All Items{" "}
-                    <Badge style={allItemsBadgeStyle} count={allNftsLength} overflowCount={999} />
-                </Button>
-                <Button
-                    style={fixedPriceButtonStyle}
-                    shape="round"
-                    onClick={() => handleFixedPriceFilter()}
-                >
-                    Fixed-price{" "}
-                    <Badge
-                        style={fixedPriceBadgeStyle}
-                        count={fixedNftsLength}
-                        overflowCount={999}
-                    />
-                </Button>
-                <Button
-                    style={auctionButtonStyle}
-                    shape="round"
-                    onClick={() => handleAuctionFilter()}
-                >
-                    For Auction{" "}
-                    <Badge
-                        style={auctionBadgeStyle}
-                        count={auctionNftsLength}
-                        overflowCount={999}
-                    />
-                </Button>
+                {filters.map(({ state, label, count }) => (
+                    <Button
+                        style={filterState === state ? activeButtonStyle : buttonStyle}
+                        shape="round"
+                        onClick={() => handleFilterChange(state)}
+                    >
+                        {label}{" "}
+                        <Badge
+                            style={filterState === state ? activeBadgeStyle : badgeStyle}
+                            count={count}
+                            overflowCount={999}
+                        />
+                    </Button>
+                ))}
             </Space>
         </div>
     )

@@ -14,43 +14,16 @@ import { Space, Button, Divider, Row, Badge, Typography } from "antd"
 const { Title } = Typography
 
 export default function Browse({ listedNfts }) {
-    const [showFixedPrice, setShowFixedPrice] = useState(false)
-    const [showAuction, setShowAuction] = useState(false)
-    const [showAllActive, setShowAllActive] = useState(false)
-
-    //////////////////////
-    //  Filter Buttons  //
-    //////////////////////
-
-    const handleFixedPriceFilter = () => {
-        setShowFixedPrice(true)
-        setShowAllActive(false)
-        setShowAuction(false)
-    }
-
-    const handleAuctionFilter = () => {
-        setShowAuction(true)
-        setShowAllActive(false)
-        setShowFixedPrice(false)
-    }
-
-    const handleShowAllActive = () => {
-        setShowAllActive(true)
-        setShowAuction(false)
-        setShowFixedPrice(false)
-    }
+    const [filterState, setFilterState] = useState("all")
 
     const allNfts = [...listedNfts.activeFixedPriceItems, ...listedNfts.activeAuctionItems]
 
-    console.log("allNfts: ", allNfts)
-
-    const filteredNfts = showFixedPrice
-        ? listedNfts.activeFixedPriceItems
-        : showAuction
-        ? listedNfts.activeAuctionItems
-        : allNfts
-
-    console.log("filteredNfts: ", filteredNfts)
+    const filteredNfts =
+        filterState === "fixedPrice"
+            ? listedNfts.activeFixedPriceItems
+            : filterState === "auction"
+            ? listedNfts.activeAuctionItems
+            : allNfts
 
     return (
         <div style={{ padding: "50px" }}>
@@ -61,15 +34,17 @@ export default function Browse({ listedNfts }) {
                 <Divider style={{ width: "100%" }} />
             </div>
             <NFT_OnSaleFilter
+                allNftsLength={allNfts.length}
                 fixedNftsLength={listedNfts.activeFixedPriceItems.length}
                 auctionNftsLength={listedNfts.activeAuctionItems.length}
-                handleFixedPriceFilter={handleFixedPriceFilter}
-                handleAuctionFilter={handleAuctionFilter}
-                handleShowAllActive={handleShowAllActive}
-                showFixedPrice={showFixedPrice}
-                showAuction={showAuction}
-                showAllActive={showAllActive}
-                allNftsLength={allNfts.length}
+                handleFilterChange={setFilterState}
+                filterState={filterState}
+                handleFixedPriceFilter={() => setFilterState("fixedPrice")}
+                handleAuctionFilter={() => setFilterState("auction")}
+                handleShowAllActive={() => setFilterState("all")}
+                showFixedPrice={filterState === "fixedPrice"}
+                showAuction={filterState === "auction"}
+                showAllActive={filterState === "all"}
             />
             <div>
                 <NFTList showOnSale={true} NFTListData={filteredNfts} />
