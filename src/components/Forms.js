@@ -483,21 +483,20 @@ export const ArtworkForm = ({
                     }
 
                     resolve(blobject)
+                } else {
+                    console.log(`Not Encrypting Image ${file.name}`)
+
+                    const blob = new Blob([event.target.result], {
+                        type: file.type,
+                    })
+
+                    const blobject = {
+                        fileName: file.name,
+                        blob: blob,
+                    }
+
+                    resolve(blobject)
                 }
-                // } else {
-                //     console.log(`Not Encrypting Image ${file.name}`)
-
-                //     const blob = new Blob([event.target.result], {
-                //         type: file.type,
-                //     })
-
-                //     const blobject = {
-                //         fileName: file.name,
-                //         blob: blob,
-                //     }
-
-                //     resolve(blobject)
-                // }
             }
 
             reader.onerror = function (error) {
@@ -900,8 +899,12 @@ export const FinishAndPayForm = ({
     ) : (
         <div style={{ textAlign: "center", justifyContent: "center" }}>
             <Title level={4}>Go to your profile to list your NFT for sale</Title>
-            <Link href={`/profile/${newContractDetails.creator}`} onClick={handleCloseCreateModal}>
-                <Button type="primary" style={{ backgroundColor: "#1890ff", margin: "10px" }}>
+            <Link href={`/profile/${newContractDetails.creator}`}>
+                <Button
+                    onClick={handleCloseCreateModal}
+                    type="primary"
+                    style={{ backgroundColor: "#1890ff", margin: "10px" }}
+                >
                     View in Profile
                 </Button>
             </Link>
