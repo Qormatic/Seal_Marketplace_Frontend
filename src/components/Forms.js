@@ -190,7 +190,7 @@ export const CollectionForm = ({ setCurrentStep, setCollectionData, initialValue
                 rules={[
                     {
                         required: true,
-                        message: "Please select true or false!",
+                        message: "Please select True or False!",
                     },
                 ]}
                 label={

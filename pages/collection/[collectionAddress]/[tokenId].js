@@ -93,6 +93,9 @@ export default function NFTPage({ data, tokenProvenance, tokenData }) {
             sealContract: { sealContract, privateView },
         } = tokenData
 
+        console.log("imageUri: ", imageUri)
+        console.log(sealContract, privateView)
+
         // If sealContract and private are both true and the account is the owner, decrypt the image
         if (sealContract === true && privateView === true && isOwner === true) {
             fetch("/api/decrypt", {
@@ -666,6 +669,7 @@ export async function getServerSideProps({ params, res }) {
     }
 
     let tokenData = await fetchTokenData()
+    console.log("tokenData_preSealCheck: ", tokenData)
 
     ////////////////////////////////////////////
     // Check if contract is Seal & is private //
@@ -683,6 +687,7 @@ export async function getServerSideProps({ params, res }) {
         try {
             // Check for contractAddress in factory contract
             const deployerAddress = await contractFactory.s_deployedContracts(collectionAddress)
+            console.log("deployerAddress: ", deployerAddress)
 
             // if deployerAddress returns zero address it's not Seal
             if (deployerAddress === "0x0000000000000000000000000000000000000000") {

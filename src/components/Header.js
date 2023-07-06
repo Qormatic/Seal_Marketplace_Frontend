@@ -338,7 +338,7 @@ const CollectionModal = ({ showCollectionModal, handleCloseCreateModal }) => {
                 _maxSupply: collectionData.supply,
                 _royaltiesPercentage: collectionData.royaltiesPercentage,
                 _royaltiesReceiver: collectionData.royaltiesReceiver,
-                _private: collectionData.privateView,
+                _private: collectionData.privateView === "true", // This converts "true" string to true boolean and "false" string to false boolean
             },
         }
 
