@@ -304,8 +304,11 @@ const CollectionModal = ({ showCollectionModal, handleCloseCreateModal }) => {
 
     const { runContractFunction } = useWeb3Contract()
 
-    const { chainId } = useMoralis()
+    // const { chainId } = useMoralis()
+    const chainId = 80001
+    console.log("chainId", chainId)
     const chainString = chainId ? parseInt(chainId).toString() : null
+    console.log("chainString", chainString)
     const marketplaceAddress = chainId ? networkMapping[chainString].NFTMarketplace[0] : null
     const contractFactoryAddress = chainId ? networkMapping[chainString].ContractFactory[0] : null
 

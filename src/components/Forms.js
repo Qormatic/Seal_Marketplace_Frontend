@@ -355,12 +355,12 @@ export const ArtworkForm = ({
 
             // Assuming handleIpfsImageUpload returns a Promise
             const newIpfsImagesUri = await handleIpfsImageUpload(values.uploadArtwork)
-
+            console.log("newIpfsImagesUri", newIpfsImagesUri)
             // Now that handleIpfsImageUpload has completed, we start handleCSVUpload using the state variable directly
             const newCSVData = await handleCSVUpload()
-
+            console.log("newCSVData", newCSVData)
             const metadata = await uploadMetadata(newIpfsImagesUri, newCSVData)
-
+            console.log("metadata", metadata)
             setLoading(false) // Now that all operations have completed, we stop the loading indicator
         } catch (error) {
             message.error("Upload Error, please try again in a while. You have not been charged.")

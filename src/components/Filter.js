@@ -53,6 +53,9 @@ export function NFT_OnSaleFilter({
     allNftsLength,
     fixedNftsLength,
     auctionNftsLength,
+    showFixedPrice,
+    showAuction,
+    showAllActive,
     handleFilterChange,
     filterState,
 }) {
@@ -121,13 +124,13 @@ export function NFT_SellNftFilter({
     handleExternalFilter,
     handlePoloFilter,
 }) {
-    console.log("allNftsLength: ", allNftsLength)
-    console.log("walletNftsLength:", walletNftsLength)
-    console.log("collectionNftsLength: ", collectionNftsLength)
+    // console.log("allNftsLength: ", allNftsLength)
+    // console.log("walletNftsLength:", walletNftsLength)
+    // console.log("collectionNftsLength: ", collectionNftsLength)
 
-    console.log("showAllInactive: ", showAllInactive)
-    console.log("showExternal:", showExternal)
-    console.log("showPolo: ", showPolo)
+    // console.log("showAllInactive: ", showAllInactive)
+    // console.log("showExternal:", showExternal)
+    // console.log("showPolo: ", showPolo)
 
     const allItemsButtonStyle = {
         background: showAllInactive ? "black" : "white",

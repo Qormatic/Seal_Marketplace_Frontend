@@ -27,7 +27,11 @@ export const checkSealContract = async (collectionAddress) => {
             )
 
             const maxSupply = await collectionContract.s_maxSupply() // total amount allowed to be minted
-            const totalSupply = await collectionContract.totalSupply() // current amount that has been minted
+            console.log("maxSupply", maxSupply)
+            // const totalSupply = await collectionContract.totalSupply() // current amount that has been minted
+            // console.log("totalSupply", totalSupply)
+
+            const totalSupply = 4
 
             const difference = maxSupply.sub(totalSupply)
             let bigNum = ethers.BigNumber.from(difference)

@@ -8,8 +8,13 @@ import { Row, Col, Typography } from "antd"
 const { Title } = Typography
 
 export default function NFTList({ NFTListData, showOnSale }) {
-    const { chainId, isWeb3Enabled, account } = useMoralis()
+    // const { chainId, isWeb3Enabled, account } = useMoralis()
+    const { isWeb3Enabled, account } = useMoralis()
+
+    const chainId = 80001
+    console.log("chainId", chainId)
     const chainString = chainId ? parseInt(chainId).toString() : null
+    // const marketplaceAddress = chainId ? networkMapping[chainString].NFTMarketplace[0] : null
     const marketplaceAddress = chainId ? networkMapping[chainString].NFTMarketplace[0] : null
     const auctionAddress = chainId ? networkMapping[chainString].NFTAuction[0] : null
 

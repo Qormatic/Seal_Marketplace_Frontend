@@ -558,7 +558,8 @@ export async function getServerSideProps({ params }) {
         }
     }
 
-    const imageUri = await getImageUri()
+    // const imageUri = await getImageUri()
+    const imageUri = "https://ipfs.io/ipfs/QmUD8fBf7ZNc6XuAjGpfTJBJA8VRW9uwzSs2NuKxLM8kRY/2.png"
     console.log("imageUri_588: ", imageUri)
 
     const randomDescription =

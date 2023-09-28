@@ -63,6 +63,8 @@ export default function Profile({
 
     const [decryptedImageUrl, setDecryptedImageUrl] = useState("")
 
+    // const [filterState, setFilterState] = useState("all")
+
     const previousAccount = useRef(null)
 
     const [userMPCollections, setUserMPCollections] = useState([])
@@ -369,6 +371,17 @@ export default function Profile({
         ? toSellNfts.collectionNfts
         : allToSellNfts
 
+    const handleFilterChange = (filterState) => {
+        console.log("filterState: ", filterState)
+        if (filterState === "showAllActive") {
+            handleShowAllActive()
+        } else if (filterState === "showFixedPrice") {
+            handleFixedPriceFilter()
+        } else if (filterState === "showAuction") {
+            handleAuctionFilter()
+        }
+    }
+
     // which NFT list data to show
     const NFTListData = showOnSale ? filteredOnSaleNfts : filteredToSellNfts
 
@@ -493,9 +506,10 @@ export default function Profile({
                                     allOnSaleNfts={allOnSaleNfts}
                                     allToSellNfts={allToSellNfts}
                                     toSellNfts={toSellNfts}
-                                    handleFixedPriceFilter={handleFixedPriceFilter}
-                                    handleAuctionFilter={handleAuctionFilter}
-                                    handleShowAllActive={handleShowAllActive}
+                                    // handleFixedPriceFilter={handleFixedPriceFilter}
+                                    // handleAuctionFilter={handleAuctionFilter}
+                                    // handleShowAllActive={handleShowAllActive}
+                                    handleFilterChange={handleFilterChange}
                                     handleShowAllInactive={handleShowAllInactive}
                                     handleExternalFilter={handleExternalFilter}
                                     handlePoloFilter={handlePoloFilter}
@@ -542,9 +556,11 @@ const NFTs = ({
     showPolo,
 
     // On Sale handlers
-    handleFixedPriceFilter,
-    handleAuctionFilter,
-    handleShowAllActive,
+    // handleFixedPriceFilter,
+    // handleAuctionFilter,
+    // handleShowAllActive,
+    handleFilterChange,
+    filterState,
 
     // To Sell handlers
     handleShowAllInactive,
@@ -552,6 +568,8 @@ const NFTs = ({
     handlePoloFilter,
 }) => {
     const { chainId, isWeb3Enabled } = useMoralis()
+    console.log("profile_chainId", chainId)
+    console.log("isWeb3Enabled", isWeb3Enabled)
 
     return (
         <>
@@ -574,12 +592,14 @@ const NFTs = ({
                                 fixedNftsLength={onSaleNfts?.activeFixedPriceItems?.length || 0}
                                 auctionNftsLength={onSaleNfts?.activeAuctionItems?.length || 0}
                                 allNftsLength={allOnSaleNfts.length}
-                                handleFixedPriceFilter={handleFixedPriceFilter}
-                                handleAuctionFilter={handleAuctionFilter}
-                                handleShowAllActive={handleShowAllActive}
+                                // handleFixedPriceFilter={handleFixedPriceFilter}
+                                // handleAuctionFilter={handleAuctionFilter}
+                                // handleShowAllActive={handleShowAllActive}
                                 showFixedPrice={showFixedPrice}
                                 showAuction={showAuction}
                                 showAllActive={showAllActive}
+                                handleFilterChange={handleFilterChange}
+                                filterState={filterState}
                             />
                         ) : (
                             <NFT_SellNftFilter
